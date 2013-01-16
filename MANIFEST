@@ -1,0 +1,15 @@
+Changes
+Makefile.PL
+MANIFEST
+META.yml # Will be created by "make dist"
+README.md
+lib/DBIx/DataStore/Config.pm
+lib/DBIx/DataStore/Config/yaml.pm
+lib/DBIx/DataStore/Debug.pm
+lib/DBIx/DataStore.pm
+lib/DBIx/DataStore/ResultRow.pm
+lib/DBIx/DataStore/ResultSet.pm
+t/00-load.t
+t/boilerplate.t
+t/pod-coverage.t
+t/pod.t

@@ -1,0 +1,30 @@
+Revision history for DBIx::DataStore
+
+0.95    2013-01-15
+        - Finally added a new entry to the horribly decrepit and out of
+        date Changes file.
+        - Dropping the code on Github, without any further modifications.
+
+0.94    2012-01-11
+
+0.93    2012-01-11
+
+0.92    2011-04-27
+
+0.85    2009-03-16
+
+0.81	2007-11-02
+		- brand-new YAML config loader with support for multiple
+		datastore configs in one location, auto-discovery of appropriate
+		config based on top-level package namespace in stack, new
+		syntax in constructor, etc.
+		- various bug fixes from the last versio of SQL::Wrapper
+		- cleaner debugging support (code still needs a lot more DEBUG checks)
+		- new methods: hashref(), next_hashref(), schemas()
+		- automatic rollbacks on connect in the event a cached connection
+		is returned with a stale transaction still open
+
+0.80    2007-11-02
+        Branch from original in-house only SQL::Wrapper to the new
+		name DBIx::DataStore.
+

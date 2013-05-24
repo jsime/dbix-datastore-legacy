@@ -832,7 +832,7 @@ package DBIx::DataStore;
 use strict;
 use warnings;
 
-our $VERSION = '0.95';
+our $VERSION = '0.96';
 
 use DBI;
 
@@ -2041,6 +2041,7 @@ sub _transform_bindings {
 	# but not select, delete, create, etc.)
 	$sql =~ s/(^\s+|\s+$)//os;
 	my $st_type = lc( ($sql =~ /^(\w+)\s+/os)[0] );
+    $st_type = 'select' if $st_type eq 'with'; # ugh (stupid workaround for legacy DataStore - rewrite is/will be much smarter about this and not just take random stabs in the dark)
 
 	# if no bound variables were passed in, we can save a few cycles by returning right here
 	return ($st_type, $sql) if !@binds || scalar(@binds) < 1;

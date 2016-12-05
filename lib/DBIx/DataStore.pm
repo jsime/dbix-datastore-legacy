@@ -844,7 +844,7 @@ preparation caching is generally very safe.
             }
         }
     };
-    my $db = DBIx::DataStore->new($config);
+    my $db = DBIx::DataStore->new({ config => $config });
 
 =head2 Configuring Database Passwords
 

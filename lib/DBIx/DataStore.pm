@@ -1,23 +1,17 @@
-#######################################################################
-# DBIx::DataStore
-#----------------------------------------------------------------------
-# This module is a collection of packages which provide a simplified
-# wrapper interface around DBI. This library does not give you some
-# fancy-schmancy ORM layer above your database -- but if you want to
-# abstract away a lot of the repetitive parts of DBI and gain some
-# nifty features in the process, this code may be for you.
-#######################################################################
+package DBIx::DataStore;
+
+use strict;
+use warnings;
+
+# ABSTRACT: Abstracts away oft-repeated parts of DBI and simplifies the way SQL is issued.
+
+use DBI;
 
 =head1 NAME
 
 DBIx::DataStore
 
 =head1 DESCRIPTION
-
-DBIx::DataStore is designed to abstract away the oft-repeated parts of DBI and to
-simplify the way you issue SQL statements to your database(s).
-
-=head1 ABSTRACT
 
 DBIx::DataStore is designed to abstract away the oft-repeated parts of DBI and to
 simplify the way you issue SQL statements to your database(s).
@@ -670,14 +664,18 @@ more database servers down the road).
 
 =head1 CONFIGURATION
 
-Database server configuration is done through a YAML file.  By default, this
-module will first check the current user's home directory for a file
-"~/.datastore.yml" and if that isn't found "/etc/datastore.yml" will be
-checked.  You can override where the configuration file is located when calling
-the new() method, or you can pass in a scalar containing raw, unprocessed YAML,
-or even pass in a hash reference which contains a data structure identical to
-what YAML would have returned itself if you need to bypass the YAML parsing for
-performance reasons.
+Database server configuration may current be done through either a YAML file or
+by passing in an equivalent datastructure to your C<new()> call.  Other
+file formats would be possible with an appropriate config loader,
+but YAML is the only one currently supported.
+
+You can override where the configuration file is located when calling the new()
+method, or you can pass in a scalar containing raw, unprocessed YAML, or even
+pass in a hash reference which contains a data structure identical to what YAML
+would have returned itself if you need to bypass the YAML parsing for any
+reason. The latter is particularly useful if your application already has its
+own configuration files and you wish to embed the DBIx::DataStore config data
+within them.
 
 Your configuration must contain at least one "primary" server definition, and
 may contain any number of "reader" server definitions (or none at all if you
@@ -768,11 +766,11 @@ provide measurable performance improvements if you issue the same query (this
 includes the placeholders, but not the values being used within those
 placeholders) repeatedly.  Not all databases' DBD modules show much or any
 difference in performance between C<prepare()> and C<prepare_cached()>, but
-preparation caching is generally very safe.  
+preparation caching is generally very safe.
 
 =back
 
-=head2 Configuration Example
+=head2 YAML Configuration Example
 
     default_reader: __random
     reader_failover: 1
@@ -785,9 +783,9 @@ preparation caching is generally very safe.
         host: db-1
         user: username
         pass: password
-		schemas:
-			- myschema
-			- public
+        schemas:
+            - myschema
+            - public
         dbd_opts:
             AutoCommit: 0
     readers:
@@ -796,20 +794,67 @@ preparation caching is generally very safe.
             db: mydatabase
             host: db-2
             user: username
-            pass: password
-			schemas:
-				- myschema
-				- public
+            schemas:
+                - myschema
+                - public
         secondreader:
             driver: Pg
             db: mydatabase
             host: 10.1.2.3
             port: 8306
             user: username
-            pass: password
-			schemas:
-				- myschema
-				- public
+            schemas:
+                - myschema
+                - public
+
+=head2 Explicit Hashref Configuration Example
+
+    my $config = {
+        default_reader      => '__random',
+        reader_failover     => 1,
+        flag_bad_readers    => 0,
+        cache_connections   => 0,
+        cache_statements    => 1,
+        primary => {
+            driver  => 'Pg',
+            db      => 'mydatabase',
+            host    => 'db-1',
+            user    => 'username',
+            pass    => 'password',
+            schemas => ['myschema','public'],
+            dbd_opts => {
+                AutoCommit => 0,
+            }
+        },
+        readers => {
+            reader1 => {
+                driver  => 'Pg',
+                db      => 'mydatabase',
+                host    => 'db-2',
+                user    => 'username',
+                schemas => ['myschema','public']
+            },
+            reader2 => {
+                driver  => 'Pg',
+                db      => 'mydatabase',
+                host    => '10.1.2.3',
+                port    => 8306,
+                user    => 'username',
+                schemas => ['myschema','public']
+            }
+        }
+    };
+    my $db = DBIx::DataStore->new($config);
+
+=head2 Configuring Database Passwords
+
+Because DBIx::DataStore uses the normal DBI/DBD layers underneath, all the
+usual methods of locating and presenting database credentials to the
+appropriate database server are available.  This includes methods such as the
+C<.pgpass> file for PostgreSQL and equivalents for other RDBMSes. If your
+DBIx::DataStore configuration does not include a C<pass> attribute for a given
+database host, these alternate methods will be used as long as they are
+properly configured.
 
 =head1 SEE ALSO
 
@@ -826,15 +871,6 @@ This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
 
 =cut
-
-package DBIx::DataStore;
-
-use strict;
-use warnings;
-
-our $VERSION = '0.96';
-
-use DBI;
 
 my $HASH_PH = qr/\?\?\?/;
 my $ARRAY_PH = $HASH_PH;

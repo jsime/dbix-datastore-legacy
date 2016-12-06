@@ -1,12 +1,12 @@
 #!perl -T
 
-use Test::More tests => 42;
+use Test::More tests => 61;
 
 use_ok('DBIx::DataStore');
 use_ok('DBD::SQLite');
 
 BEGIN {
-    my $dbfile = '/tmp/dbix-database-test.db';
+    my $dbfile = '/tmp/dbix-datastore-test.db';
     unlink($dbfile) if -f $dbfile;
 }
 END {
@@ -41,7 +41,7 @@ ok($res->next,          'placeholder-2 resultrow defined');
 is($res->[0], 1,        'placeholder-2 returned expected value');
 
 $res = $db->do(q{ create table test_one ( id integer not null primary key, data text not null ) });
-ok($res,    'create-table-1 resultset defined');
+ok($res,    'create-1 resultset defined');
 
 $res = $db->do(q{ insert into test_one ??? }, { id => 1, data => "foo" });
 ok($res,                                            'insert-1 resultset defined');
@@ -86,3 +86,34 @@ is($pager->last, 2,             'paged-1 pager current page last entry expected 
 is($pager->total_entries, 4,    'paged-1 pager total_entries expected value');
 is($pager->entries_per_page, 1, 'paged-1 pager entries_per_page expected value');
 is($pager->current_page, 2,     'paged-1 pager current_page expected value');
+
+$res = $db->do(q{ create table tx_testing ( id integer not null primary key, data text not null ) });
+ok($res,                    'create-2 resultset defined');
+ok($db->begin,              'txn-1 begin returned true');
+ok($db->in_transaction,     'txn-1 in_transaction reports true');
+$res = $db->do(q{ insert into tx_testing (id, data) values (1, 'row to rollback') });
+ok($res,                    'txn-1 row insert returned defined result');
+$res = $db->do(q{ select * from tx_testing where id = 1 });
+ok($res && $res->next,      'txn-1 found row inserted in current transaction');
+ok($db->rollback,           'txn-1 rollback returned true');
+$res = $db->do(q{ select * from tx_testing where id = 1 });
+ok($res,                    'txn-1 select returned valid resultset object');
+ok( ! $res->next,           'txn-1 row that was rollback\'ed not present in resultset');
+
+$res = $db->do(q{ insert into tx_testing (id, data) values (2, 'pre-savepoint row to save') });
+ok($db->begin,                              'txn-2 transaction started successfully');
+ok($res,                                    'txn-2 first insert succeeded');
+ok($db->savepoint("save1"),                 'txn-2 savepoint() returned true');
+$res = $db->do(q{ insert into tx_testing (id, data) values (3, 'post-savepoint row to rollback') });
+ok($res,                                    'txn-2 second insert succeeded');
+$res = $db->do(q{ select * from tx_testing where id in (2,3) });
+ok($res && $res->next && $res->next,        'txn-2 both rows post-begin are present');
+ok($db->rollback("save1"),                  'txn-2 rollback to savpoint returned true');
+$res = $db->do(q{ select * from tx_testing where id in (2,3) order by id asc });
+ok($res && $res->next,                      'txn-2 post-savepoint rollback select succeeded and returned first row');
+ok( ! $res->next,                           'txn-2 post-savepoint rollback select did not return post-savepoint insert');
+ok($db->commit,                             'txn-2 post-savepoint rollback commit succeeded');
+$res = $db->do(q{ select * from tx_testing where id in (2,3) order by id asc });
+ok($res && $res->next,                      'txn-2 post-savepoint rollback commit select succeeded and returned first row');
+ok( ! $res->next,                           'txn-2 post-savepoint rollback commit select did not return post-savepoint insert');
+

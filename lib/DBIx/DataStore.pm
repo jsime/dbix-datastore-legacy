@@ -57,6 +57,28 @@ And here is what the output from that code might look like.
 
     Showing 1 to 3 of 3 total results.
 
+=head2 IMPORTANT NOTICE
+
+This is the legacy release of DBIx::DataStore and has a low chance of seeing
+future (non-critical bug fix) releases. It is being published for the primary
+purpose of easing the maintenance of existing installations.
+
+Future versions of this module will make attempts to maintain as much backwards
+compatibility as possible, but there are no guarantees that every feature or
+method will carry over unchanged from the user perspective. It is recommended
+that if you do build something around this module that you pin to pre-1.0
+versions. A future release which breaks functionality with what is presented
+here will begin with a new major version.
+
+This code has been in heavy production use at multiple companies for almost
+fifteen years and is considered pretty (though not perfectly) stable. You are
+welcome to make use of it, in the form presented here, in your own projects.
+Significant feature requests for this version will likely be met with a
+somewhat low priority, and development of new applications or libraries with it
+is not strongly encouraged.
+
+Critical security and bug fix requests will be reviewed.
+
 =head1 CONCEPTS
 
 In using DBIx::DataStore, there are three main types of objects with which you'll

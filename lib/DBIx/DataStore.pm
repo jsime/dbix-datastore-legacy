@@ -25,45 +25,37 @@ with the optional paginating feature turned on and set to the first page of
 results.  It then gets a Data::Page object through the pager() method and loops
 over the first page's worth of results from the database to print them.
 
-=over
+    use DBIx::DataStore ( config => 'yaml' );
 
-	use DBIx::DataStore ( config => 'yaml' );
+    my $db = DBIx::DataStore->new('commerce');
 
-	my $db = DBIx::DataStore->new('commerce');
+    my $results = $db->do({ page => 1, per_page => 15 }, q{
+        select p.name, p.price, c.name as category
+        from products p
+            join product_categories pc on (pc.produc_id = p.id)
+            join categories c on (c.id = pc.category_id)
+        where c.id in ???
+            and p.price between ? and ?
+        order by p.price desc, p.name asc
+    }, [2,3,5], 17, 23);
 
-	my $results = $db->do({ page => 1, per_page => 15 }, q{
-		select p.name, p.price, c.name as category
-		from products p
-			join product_categories pc on (pc.produc_id = p.id)
-			join categories c on (c.id = pc.category_id)
-		where c.id in ???
-			and p.price between ? and ?
-		order by p.price desc, p.name asc
-	}, [2,3,5], 17, 23);
+    my $pager = $results->pager;
 
-	my $pager = $results->pager;
+    while ($results->next) {
+        print sprintf("%s was found in category %s for \$%.2f.\n",
+            @{$results}{qw( name category price )});
+    }
 
-	while ($results->next) {
-		print sprintf("%s was found in category %s for \$%.2f.\n",
-			@{$results}{qw( name category price )});
-	}
-
-	print sprintf("\nShowing %d to %d of %d total results.\n",
-		$pager->first, $pager->last, $pager->total_entries);
-
-=back
+    print sprintf("\nShowing %d to %d of %d total results.\n",
+        $pager->first, $pager->last, $pager->total_entries);
 
 And here is what the output from that code might look like.
 
-=over
+    Golden Apple was found in category Food for $22.24.
+    Mermaid Statue was found in category Artwork for $17.76.
+    Norton's Epaulets was found in category Clothing for $17.76.
 
-	Golden Apple was found in category Food for $22.24.
-	Mermaid Statue was found in category Artwork for $17.76.
-	Norton's Epaulets was found in category Clothing for $17.76.
-
-	Showing 1 to 3 of 3 total results.
-
-=back
+    Showing 1 to 3 of 3 total results.
 
 =head1 CONCEPTS
 
@@ -120,11 +112,7 @@ described here.  Arguments are passed as a hash (not a reference) to the
 module as part of the use statement.  For example, to load DBIx::DataStore
 with the default options, except for debugging which we'll set to "5", do:
 
-=over
-
     use DBIx::DataStore ( debug => 5 );
-
-=back
 
 Below is a description of each option that can be fiddled with on module
 import.  The name in parentheses at the start of each subsection is the
@@ -232,12 +220,8 @@ There are three main forms of the currently-supported constructor syntax.  The
 first of these is to simply specify the name of the data store to which you
 want to connect and optionally and alternate schema list:
 
-=over
-
     my $db = DBIx::DataStore->new($datastore);
     my $db = DBIx::DataStore->new($datastore, @schemas);
-
-=back
 
 This should be a single scalar value containing a string that matches the name of
 one of the datastores defined in your configuration (whether it be YAML or any of
@@ -246,11 +230,7 @@ the other configuration loaders supported).
 The second form allows more control over specific parts of a datastore's
 configuration and connection parameters:
 
-=over
-
     my $db = DBIx::DataStore->new({ store => $datastore, ... });
-
-=back
 
 This version allows for overriding not just the schemas, but which reader
 should be used, changing the default settings for statement preparation, statement
@@ -447,15 +427,15 @@ standard DBI methods where you have to choose up front between using
 C<fetchrow_array[ref]()> or C<fetchrow_hashref()>).  Thus, something like the
 following is perfectly acceptable:
 
-	my $result = $db->do(q{
-		select id, name from users order by name asc
-	});
-	while ($result->next) {
-		print sprintf("ID %d: %s\n",
-			$result->[0],
-			$result->{'name'}
-		);
-	}
+    my $result = $db->do(q{
+        select id, name from users order by name asc
+    });
+    while ($result->next) {
+        print sprintf("ID %d: %s\n",
+            $result->[0],
+            $result->{'name'}
+        );
+    }
 
 =item next()
 
@@ -465,15 +445,15 @@ accessors">).  This method also returns a reference to the result set object,
 making the following two snippets of code effectively identical (though the
 second is unnecessarily verbose):
 
-	while ($result->next) {
-		print $result->{'some_col_name'};
-	}
+    while ($result->next) {
+        print $result->{'some_col_name'};
+    }
 
 or
 
-	while (my $row = $result->next) {
-		print $row->{'some_col_name'};
-	}
+    while (my $row = $result->next) {
+        print $row->{'some_col_name'};
+    }
 
 The return value will be undef when there are no more rows to retrieve from the
 database.
@@ -498,10 +478,10 @@ This method retrieves all rows from the database at once and returns a list of
 result set row objects, each one containing a single row from the result set.
 It is functionally equivalent to the following:
 
-	my (@rows);
-	while (my $row = $result->next) {
-		push(@rows, $row);
-	}
+    my (@rows);
+    while (my $row = $result->next) {
+        push(@rows, $row);
+    }
 
 Please keep in mind that, internally, that is effectively what this method does
 itself (though slightly more efficiently).  So C<all()> won't actually return
@@ -540,7 +520,7 @@ sure whether your database supports this feature (most of them which support
 subqueries do), you can try to run the following SQL query (change "some_table"
 to a table name that actually exists first):
 
-	select count(*) from (select * from some_table) derived
+    select count(*) from (select * from some_table) derived
 
 Some database servers, such as Oracle, don't allow you to give a name to a
 derived table in a SQL query like the one above.  But if you're running Oracle,
@@ -588,17 +568,17 @@ include it).
 
 Example:
 
-	my $result = $db->do(q{
-		select * from users where id in (???)
-	}, \@userid_list);
+    my $result = $db->do(q{
+        select * from users where id in (???)
+    }, \@userid_list);
 
 If your list of user IDs contained the values "1", "2" and "3" this would have
 achieved the same exact effect as you writing out the C<do()> call more
 verbosely as:
 
-	my $result = $db->do(q{
-		select * from users where id in (?,?,?)
-	}, 1, 2, 3);
+    my $result = $db->do(q{
+        select * from users where id in (?,?,?)
+    }, 1, 2, 3);
 
 But then, you would have needed to know exactly how many elements were going to
 be in the list of IDs you wanted to match against and would have had to write
@@ -619,9 +599,9 @@ here as well.
 
 Example:
 
-	my $num_rows_updated = $db->do(q{
-		update users set ??? where id = ?
-	}, { name => $new_name }, $user_id);
+    my $num_rows_updated = $db->do(q{
+        update users set ??? where id = ?
+    }, { name => $new_name }, $user_id);
 
 Writing out the normal placeholder(s) yourself would work too, but would get
 pretty annoying if you're updating many columns at once.
@@ -642,9 +622,9 @@ must come after it, not before.
 
 Example:
 
-	my $num_rows_inserted = $db->do(q{
-		insert into users values ???
-	}, { name => $name, email => $email, ... });
+    my $num_rows_inserted = $db->do(q{
+        insert into users values ???
+    }, { name => $name, email => $email, ... });
 
 =back
 
@@ -883,1311 +863,1311 @@ our %TV = map { $_ => 1 } qw( 1 yes true on enable enabled );
 our %FV = map { $_ => 1 } qw( 0 no false off disable disabled );
 
 sub import {
-	my ($pkg, %t) = @_;
+    my ($pkg, %t) = @_;
 
-	foreach (keys %t) {
-		$t{lc($_)} = lc($t{$_});
-		delete $t{$_} unless lc($_) eq $_;
-	}
+    foreach (keys %t) {
+        $t{lc($_)} = lc($t{$_});
+        delete $t{$_} unless lc($_) eq $_;
+    }
 
-	# set up debugging and logger
-	$t{'debug'} = $ENV{'DATASTORE_DEBUG'} if (!defined $t{'debug'} || $t{'debug'} !~ /^\d+$/o)
-		&& defined $ENV{'DATASTORE_DEBUG'} && $ENV{'DATASTORE_DEBUG'} =~ /^\d+$/o;
-	$t{'debug'} = 0 unless defined $t{'debug'} && $t{'debug'} =~ /^\d+$/o;
-	eval("use DBIx::DataStore::Debug ($t{'debug'});");
+    # set up debugging and logger
+    $t{'debug'} = $ENV{'DATASTORE_DEBUG'} if (!defined $t{'debug'} || $t{'debug'} !~ /^\d+$/o)
+        && defined $ENV{'DATASTORE_DEBUG'} && $ENV{'DATASTORE_DEBUG'} =~ /^\d+$/o;
+    $t{'debug'} = 0 unless defined $t{'debug'} && $t{'debug'} =~ /^\d+$/o;
+    eval("use DBIx::DataStore::Debug ($t{'debug'});");
 
-	if (defined $t{'paging'}) {
-		if (exists $TV{lc($t{'paging'})}) { #load Data::Page now
-			$USE_PAGER = 1;
-			eval("use Data::Page");
-		} elsif (exists $FV{lc($t{'paging'})}) { #don't ever load Data::Page
-			$USE_PAGER = 0;
-		} else { # auto-loading of Data::Page on first use
-			$USE_PAGER = -1;
-		}
-	}
+    if (defined $t{'paging'}) {
+        if (exists $TV{lc($t{'paging'})}) { #load Data::Page now
+            $USE_PAGER = 1;
+            eval("use Data::Page");
+        } elsif (exists $FV{lc($t{'paging'})}) { #don't ever load Data::Page
+            $USE_PAGER = 0;
+        } else { # auto-loading of Data::Page on first use
+            $USE_PAGER = -1;
+        }
+    }
 
-	# call the config loader submodule
-	$t{'use_home'} = 0 if !defined $t{'use_home'} || $t{'use_home'} !~ /^\d+$/o;
-	eval("use DBIx::DataStore::Config ('$t{'config'}', $t{'use_home'});")
-		if defined $t{'config'} && length($t{'config'}) > 0;
+    # call the config loader submodule
+    $t{'use_home'} = 0 if !defined $t{'use_home'} || $t{'use_home'} !~ /^\d+$/o;
+    eval("use DBIx::DataStore::Config ('$t{'config'}', $t{'use_home'});")
+        if defined $t{'config'} && length($t{'config'}) > 0;
 
-	# we do these mandatory loads here instead of the normal area because we need to
-	# delay their loading until after we've done things like define DEBUG and such
-	eval("use DBIx::DataStore::ResultRow");
-	eval("use DBIx::DataStore::ResultSet");
+    # we do these mandatory loads here instead of the normal area because we need to
+    # delay their loading until after we've done things like define DEBUG and such
+    eval("use DBIx::DataStore::ResultRow");
+    eval("use DBIx::DataStore::ResultSet");
 }
 
 sub new {
-	my $class = shift;
+    my $class = shift;
 
-	my $self = { error => '' };
-	my $opts = {};
-	my @configs = ();
+    my $self = { error => '' };
+    my $opts = {};
+    my @configs = ();
 
-	# check for options hashref to override config file path and/or secondary DB selection
-	if (scalar(@_) > 0 && ref($_[0]) eq 'HASH') {
-		$opts = shift;
-	}
+    # check for options hashref to override config file path and/or secondary DB selection
+    if (scalar(@_) > 0 && ref($_[0]) eq 'HASH') {
+        $opts = shift;
+    }
 
-	my @args = @_;
+    my @args = @_;
 
-	# check first to see if a config option was passed in, and if so whether it was a
-	# hashref containing the already-parsed config data, a scalar with raw YAML markup
-	# in it that still needs to be parsed, or a filesystem path to a YAML file...
-	# alternatively, if no config option was passed in, fall back on the default paths
-	my $found_config = 0;
-	if (exists $opts->{'config'}) {
-		dslog(q{Deprecated config-in-hashref constructor syntax used. This feature won't exist someday!}) if DEBUG();
-		if (ref($opts->{'config'}) eq 'HASH') {
-			# blindly assume hashref contains a valid config structure for now... if it
-			# doesn't, that will be caught soon enough
-			$self->{'config'} = { %{$opts->{'config'}} };
-			$found_config = 1;
-		} elsif ($opts->{'config'} =~ /^\// && -r $opts->{'config'}) {
-			# scalar contained what appeared to be a path, and lo and behold it pointed to
-			# file we're able to read... we don't set found_config here, though... just add
-			# it to the list of configs to check further down to make sure it's actually
-			# valid
-			@configs = ($opts->{'config'});
-		} elsif (length($opts->{'config'}) > 0) {
-			# fall back on assumining it must be raw YAML that needs to be parsed, so
-			# give that a shot now
-			eval("use YAML::Syck qw()");
-			if ($self->{'config'} = YAML::Syck::Load($opts->{'config'})) {
-				$found_config = 1;
-			}
-		}
+    # check first to see if a config option was passed in, and if so whether it was a
+    # hashref containing the already-parsed config data, a scalar with raw YAML markup
+    # in it that still needs to be parsed, or a filesystem path to a YAML file...
+    # alternatively, if no config option was passed in, fall back on the default paths
+    my $found_config = 0;
+    if (exists $opts->{'config'}) {
+        dslog(q{Deprecated config-in-hashref constructor syntax used. This feature won't exist someday!}) if DEBUG();
+        if (ref($opts->{'config'}) eq 'HASH') {
+            # blindly assume hashref contains a valid config structure for now... if it
+            # doesn't, that will be caught soon enough
+            $self->{'config'} = { %{$opts->{'config'}} };
+            $found_config = 1;
+        } elsif ($opts->{'config'} =~ /^\// && -r $opts->{'config'}) {
+            # scalar contained what appeared to be a path, and lo and behold it pointed to
+            # file we're able to read... we don't set found_config here, though... just add
+            # it to the list of configs to check further down to make sure it's actually
+            # valid
+            @configs = ($opts->{'config'});
+        } elsif (length($opts->{'config'}) > 0) {
+            # fall back on assumining it must be raw YAML that needs to be parsed, so
+            # give that a shot now
+            eval("use YAML::Syck qw()");
+            if ($self->{'config'} = YAML::Syck::Load($opts->{'config'})) {
+                $found_config = 1;
+            }
+        }
 
-		if (scalar(@configs) > 0) {
-			eval("use YAML::Syck qw()");
+        if (scalar(@configs) > 0) {
+            eval("use YAML::Syck qw()");
 
-			foreach my $path (@configs) {
-				next unless -r $path;
-				if ($self->{'config'} = YAML::Syck::LoadFile($path)) {
-					$found_config = 1;
-					last;
-				} else {
-					dslog(qq{Configuration file "$path" could not be loaded. Skipping.}) if DEBUG();
-				}
-			}
-		}
+            foreach my $path (@configs) {
+                next unless -r $path;
+                if ($self->{'config'} = YAML::Syck::LoadFile($path)) {
+                    $found_config = 1;
+                    last;
+                } else {
+                    dslog(qq{Configuration file "$path" could not be loaded. Skipping.}) if DEBUG();
+                }
+            }
+        }
 
-		die dslog(q{Instance config variable present, but no valid config found.}) unless $found_config;
+        die dslog(q{Instance config variable present, but no valid config found.}) unless $found_config;
 
-		# Check whether connection caching should be enabled
-		if (defined $opts->{'cache_connections'}) {
-			$self->{'config'}->{'cache_connections'} = $opts->{'cache_connections'};
-		} elsif (!defined $self->{'config'}->{'cache_connections'}) {
-			$self->{'config'}->{'cache_connections'} = 0;
-		}
+        # Check whether connection caching should be enabled
+        if (defined $opts->{'cache_connections'}) {
+            $self->{'config'}->{'cache_connections'} = $opts->{'cache_connections'};
+        } elsif (!defined $self->{'config'}->{'cache_connections'}) {
+            $self->{'config'}->{'cache_connections'} = 0;
+        }
 
-		# Check whether statement handler caching should be used
-		if (defined $opts->{'cache_statements'}) {
-			$self->{'config'}->{'cache_statements'} = $opts->{'cache_statements'};
-		} elsif (!defined $self->{'config'}->{'cache_statements'}) {
-			$self->{'config'}->{'cache_statements'} = 0;
-		}
-	}
+        # Check whether statement handler caching should be used
+        if (defined $opts->{'cache_statements'}) {
+            $self->{'config'}->{'cache_statements'} = $opts->{'cache_statements'};
+        } elsif (!defined $self->{'config'}->{'cache_statements'}) {
+            $self->{'config'}->{'cache_statements'} = 0;
+        }
+    }
 
-	# now for the new DBIx::DataStore syntax (the previous block was to support the
-	# old SQL::Wrapper syntax -- it will likely be dropped some day down the road
-	if ($found_config != 1 && defined $opts->{'store'} && length($opts->{'store'}) > 0) {
-		eval(q|$self->{'config'} = DBIx::DataStore::Config::get_store($opts->{'store'})|);
-		if ($@ || !defined $self->{'config'}) {
-			die dslog(q{Error getting configuration for datastore:}, $opts->{'store'}, q{[}, $@, q{]});
-		} else {
-			$found_config = 1;
-		}
-	}
+    # now for the new DBIx::DataStore syntax (the previous block was to support the
+    # old SQL::Wrapper syntax -- it will likely be dropped some day down the road
+    if ($found_config != 1 && defined $opts->{'store'} && length($opts->{'store'}) > 0) {
+        eval(q|$self->{'config'} = DBIx::DataStore::Config::get_store($opts->{'store'})|);
+        if ($@ || !defined $self->{'config'}) {
+            die dslog(q{Error getting configuration for datastore:}, $opts->{'store'}, q{[}, $@, q{]});
+        } else {
+            $found_config = 1;
+        }
+    }
 
-	# check for the alternate-new syntax of "new($store, @schemas)" (where @schemas is optional)
-	if ($found_config != 1 && scalar(@args) > 0) {
-		eval(q|$self->{'config'} = DBIx::DataStore::Config::get_store($args[0])|);
-		if ($@ || !defined $self->{'config'}) {
-			dslog(q{Non-hashref args passed in, but first one is not a valid datastore config name.}) if DEBUG();
-		} else {
-			dslog(q{Alternate constructor syntax [new($datastore, @schemas)] used.}) if DEBUG() >= 3;
-			$found_config = 1;
-			shift(@args); # remove datastore name from remaining args
-			my @manual_schemas = grep { $_ =~ /^\w+$/o } @args;
-			if (scalar(@manual_schemas) > 0) {
-				dslog(q{Overriding configuration's schemas with custom list:}, join(', ', @manual_schemas)) if DEBUG() >= 2;
-				$self->{'config'}->{'primary'}->{'schemas'} = [@manual_schemas];
-				if (defined $self->{'config'}->{'readers'} && ref($self->{'config'}->{'readers'}) eq 'ARRAY') {
-					foreach my $reader (@{$self->{'config'}->{'readers'}}) {
-						$self->{'config'}->{'readers'}->{$reader}->{'schemas'} = [@manual_schemas];
-					}
-				}
-			}
-		}
-	}
+    # check for the alternate-new syntax of "new($store, @schemas)" (where @schemas is optional)
+    if ($found_config != 1 && scalar(@args) > 0) {
+        eval(q|$self->{'config'} = DBIx::DataStore::Config::get_store($args[0])|);
+        if ($@ || !defined $self->{'config'}) {
+            dslog(q{Non-hashref args passed in, but first one is not a valid datastore config name.}) if DEBUG();
+        } else {
+            dslog(q{Alternate constructor syntax [new($datastore, @schemas)] used.}) if DEBUG() >= 3;
+            $found_config = 1;
+            shift(@args); # remove datastore name from remaining args
+            my @manual_schemas = grep { $_ =~ /^\w+$/o } @args;
+            if (scalar(@manual_schemas) > 0) {
+                dslog(q{Overriding configuration's schemas with custom list:}, join(', ', @manual_schemas)) if DEBUG() >= 2;
+                $self->{'config'}->{'primary'}->{'schemas'} = [@manual_schemas];
+                if (defined $self->{'config'}->{'readers'} && ref($self->{'config'}->{'readers'}) eq 'ARRAY') {
+                    foreach my $reader (@{$self->{'config'}->{'readers'}}) {
+                        $self->{'config'}->{'readers'}->{$reader}->{'schemas'} = [@manual_schemas];
+                    }
+                }
+            }
+        }
+    }
 
-	my ($i);
+    my ($i);
 
-	# if we still don't have a config, use the package-matching option
-	if ($found_config != 1) {
-		my @packages;
-		for ($i = 0; my @p = caller($i); $i++) {
-			push(@packages, $p[0]) unless $p[0] eq 'main';
-		}
-		if (scalar(@packages) > 0) {
-			eval(q|$self->{'config'} = DBIx::DataStore::Config::match_store(\@packages)|);
-			if ($@ || !defined $self->{'config'}) {
-				dslog(q{Locating configuration based on packages in stack failed.}) if DEBUG();
-			} else {
-				$found_config = 1;
-			}
-		}
-	}
+    # if we still don't have a config, use the package-matching option
+    if ($found_config != 1) {
+        my @packages;
+        for ($i = 0; my @p = caller($i); $i++) {
+            push(@packages, $p[0]) unless $p[0] eq 'main';
+        }
+        if (scalar(@packages) > 0) {
+            eval(q|$self->{'config'} = DBIx::DataStore::Config::match_store(\@packages)|);
+            if ($@ || !defined $self->{'config'}) {
+                dslog(q{Locating configuration based on packages in stack failed.}) if DEBUG();
+            } else {
+                $found_config = 1;
+            }
+        }
+    }
 
-	# if that still doesn't work, return the default-marked configuration
-	if ($found_config != 1) {
-		eval(q|$self->{'config'} = DBIx::DataStore::Config::get_default()|);
-		if ($@ || !defined $self->{'config'}) {
-			die dslog(q{No configuration could be located and used for this connection!});
-		}
-	}
+    # if that still doesn't work, return the default-marked configuration
+    if ($found_config != 1) {
+        eval(q|$self->{'config'} = DBIx::DataStore::Config::get_default()|);
+        if ($@ || !defined $self->{'config'}) {
+            die dslog(q{No configuration could be located and used for this connection!});
+        }
+    }
 
-	# Validate connection to primary database
-	$self->{'handles'} = {};
-	unless ($self->{'handles'}->{'primary'} = _db_connect(
-		cache => $self->{'config'}->{'cache_connections'},
-		%{$self->{'config'}->{'primary'}})
-	) {
-		die dslog("Validation of connection to primary database failed!");
-	}
-	$self->{'handles'}->{'primary'} = _set_schema_searchpath(
-		$self->{'handles'}->{'primary'},
-		$self->{'config'}->{'primary'}->{'driver'},
-		$self->{'config'}->{'primary'}->{'schemas'}
-	) || die dslog(q{Error setting schema search path.});
+    # Validate connection to primary database
+    $self->{'handles'} = {};
+    unless ($self->{'handles'}->{'primary'} = _db_connect(
+        cache => $self->{'config'}->{'cache_connections'},
+        %{$self->{'config'}->{'primary'}})
+    ) {
+        die dslog("Validation of connection to primary database failed!");
+    }
+    $self->{'handles'}->{'primary'} = _set_schema_searchpath(
+        $self->{'handles'}->{'primary'},
+        $self->{'config'}->{'primary'}->{'driver'},
+        $self->{'config'}->{'primary'}->{'schemas'}
+    ) || die dslog(q{Error setting schema search path.});
 
-	# Select the default reader DB
-	my $num_readers = defined $self->{'config'}->{'readers'} && ref($self->{'config'}->{'readers'}) eq 'HASH'
-		? scalar keys %{$self->{'config'}->{'readers'}} : 0;
+    # Select the default reader DB
+    my $num_readers = defined $self->{'config'}->{'readers'} && ref($self->{'config'}->{'readers'}) eq 'HASH'
+        ? scalar keys %{$self->{'config'}->{'readers'}} : 0;
 
-	$self->{'config'}->{'default_reader'} = $opts->{'reader'} if defined $opts->{'reader'};
-	$self->{'config'}->{'default_reader'} = 'primary'
-		if !defined $self->{'config'}->{'default_reader'}
-		|| lc($self->{'config'}->{'default_reader'}) eq 'none'
-		|| length($self->{'config'}->{'default_reader'}) < 1
-		|| $num_readers < 1;
+    $self->{'config'}->{'default_reader'} = $opts->{'reader'} if defined $opts->{'reader'};
+    $self->{'config'}->{'default_reader'} = 'primary'
+        if !defined $self->{'config'}->{'default_reader'}
+        || lc($self->{'config'}->{'default_reader'}) eq 'none'
+        || length($self->{'config'}->{'default_reader'}) < 1
+        || $num_readers < 1;
 
-	my @reader_list = ();
+    my @reader_list = ();
 
-	# if a non-primary reader was selected (either in the YAML config or the opts hashref), populate
-	# the reader_list array with candidates (__random will fill the list with all defined readers in
-	# a randomized order; if a specific server was selected the list will contain only that entry)
-	if (defined $self->{'config'}->{'default_reader'} && $self->{'config'}->{'default_reader'} ne 'primary') {
-		if ($self->{'config'}->{'default_reader'} eq '__random') {
-			if ($num_readers > 0) {
-				@reader_list = keys %{$self->{'config'}->{'readers'}};
-				$i = $#reader_list;
-				while ($i--) {
-					my $j = int rand ($i+1);
-					@reader_list[$i,$j] = @reader_list[$j,$i];
-				}
-			}
-		} else {
-			die dslog("Non-existent reader database ($self->{'config'}->{'default_reader'}) selected!")
-				unless exists $self->{'config'}->{'readers'}->{ $self->{'config'}->{'default_reader'} };
-			@reader_list = ($self->{'config'}->{'default_reader'});
-		}
-	}
+    # if a non-primary reader was selected (either in the YAML config or the opts hashref), populate
+    # the reader_list array with candidates (__random will fill the list with all defined readers in
+    # a randomized order; if a specific server was selected the list will contain only that entry)
+    if (defined $self->{'config'}->{'default_reader'} && $self->{'config'}->{'default_reader'} ne 'primary') {
+        if ($self->{'config'}->{'default_reader'} eq '__random') {
+            if ($num_readers > 0) {
+                @reader_list = keys %{$self->{'config'}->{'readers'}};
+                $i = $#reader_list;
+                while ($i--) {
+                    my $j = int rand ($i+1);
+                    @reader_list[$i,$j] = @reader_list[$j,$i];
+                }
+            }
+        } else {
+            die dslog("Non-existent reader database ($self->{'config'}->{'default_reader'}) selected!")
+                unless exists $self->{'config'}->{'readers'}->{ $self->{'config'}->{'default_reader'} };
+            @reader_list = ($self->{'config'}->{'default_reader'});
+        }
+    }
 
-	if (scalar(@reader_list) < 1) {
-		# if there is no selection for a reader, copy the objref of the primary DB
-		$self->{'handles'}->{'reader'} = $self->{'handles'}->{'primary'};
-		$self->{'config'}->{'default_reader'} = 'primary';
-		$self->{'config'}->{'readers'} = { primary => $self->{'config'}->{'primary'} };
-		$self->{'reader'} = 'primary';
-	} else {
-		my $found_reader = 0;
-		foreach my $reader (@reader_list) {
-			my ($dbh);
-			if ($dbh = _db_connect(
-				cache => $self->{'config'}->{'cache_connections'},
-				%{$self->{'config'}->{'readers'}->{$reader}})
-			) {
-				$self->{'handles'}->{'reader'} = _set_schema_searchpath(
-					$dbh,
-					$self->{'config'}->{'readers'}->{$reader}->{'driver'},
-					$self->{'config'}->{'readers'}->{$reader}->{'schemas'}
-				);
-				$self->{'reader'} = $reader;
-				$found_reader = 1;
-				last;
-			}
-		}
+    if (scalar(@reader_list) < 1) {
+        # if there is no selection for a reader, copy the objref of the primary DB
+        $self->{'handles'}->{'reader'} = $self->{'handles'}->{'primary'};
+        $self->{'config'}->{'default_reader'} = 'primary';
+        $self->{'config'}->{'readers'} = { primary => $self->{'config'}->{'primary'} };
+        $self->{'reader'} = 'primary';
+    } else {
+        my $found_reader = 0;
+        foreach my $reader (@reader_list) {
+            my ($dbh);
+            if ($dbh = _db_connect(
+                cache => $self->{'config'}->{'cache_connections'},
+                %{$self->{'config'}->{'readers'}->{$reader}})
+            ) {
+                $self->{'handles'}->{'reader'} = _set_schema_searchpath(
+                    $dbh,
+                    $self->{'config'}->{'readers'}->{$reader}->{'driver'},
+                    $self->{'config'}->{'readers'}->{$reader}->{'schemas'}
+                );
+                $self->{'reader'} = $reader;
+                $found_reader = 1;
+                last;
+            }
+        }
 
-		if ($found_reader != 1) {
-			die dslog("No valid connection could be made to a reader database!");
-		}
-	}
+        if ($found_reader != 1) {
+            die dslog("No valid connection could be made to a reader database!");
+        }
+    }
 
-	# quick reference flag for whether AutoCommit was turned off on the primary DB
-	$self->{'autocommit'} =
-			defined $self->{'config'}->{'primary'}->{'dbd_opts'}
-			&& ref($self->{'config'}->{'primary'}->{'dbd_opts'}) eq 'HASH'
-			&& defined $self->{'config'}->{'primary'}->{'dbd_opts'}->{'AutoCommit'}
-			&& $self->{'config'}->{'primary'}->{'dbd_opts'}->{'AutoCommit'} == 0
-		? 0 : 1;
+    # quick reference flag for whether AutoCommit was turned off on the primary DB
+    $self->{'autocommit'} =
+            defined $self->{'config'}->{'primary'}->{'dbd_opts'}
+            && ref($self->{'config'}->{'primary'}->{'dbd_opts'}) eq 'HASH'
+            && defined $self->{'config'}->{'primary'}->{'dbd_opts'}->{'AutoCommit'}
+            && $self->{'config'}->{'primary'}->{'dbd_opts'}->{'AutoCommit'} == 0
+        ? 0 : 1;
 
-	# Init the "in transaction" flag
-	$self->{'in_tx'} = 0;
+    # Init the "in transaction" flag
+    $self->{'in_tx'} = 0;
 
-	# Init the statement counter. This counter is used to check if there have
-	# been any non-select statements issued to the primary DB since the last
-	# commit() or rollback(). While technically it is incremented for each
-	# non-select statement, it cannot be relied on for an exact count of the
-	# statements since the last rollback()/commit(), as selective rollbacks
-	# of savepoints or nested transactions will not reset this counter (it is
-	# only reset by the rollback() method if that rollback has the side effect
-	# of the in_tx flag == 0. Why bother if it's not an exact counter? I'm
-	# glad you asked! When AutoCommit is turned off for the primary DB, this
-	# counter is used to determine whether to silence warnings/errors on the
-	# extraneous calls to transaction methods, particularly in DESTROY. For
-	# the exact details of when this silencing will occur, check out the
-	# code in the various transaction methods.
-	$self->{'st_count'} = 0;
+    # Init the statement counter. This counter is used to check if there have
+    # been any non-select statements issued to the primary DB since the last
+    # commit() or rollback(). While technically it is incremented for each
+    # non-select statement, it cannot be relied on for an exact count of the
+    # statements since the last rollback()/commit(), as selective rollbacks
+    # of savepoints or nested transactions will not reset this counter (it is
+    # only reset by the rollback() method if that rollback has the side effect
+    # of the in_tx flag == 0. Why bother if it's not an exact counter? I'm
+    # glad you asked! When AutoCommit is turned off for the primary DB, this
+    # counter is used to determine whether to silence warnings/errors on the
+    # extraneous calls to transaction methods, particularly in DESTROY. For
+    # the exact details of when this silencing will occur, check out the
+    # code in the various transaction methods.
+    $self->{'st_count'} = 0;
 
-	# if AutoCommit is set to 0 for the primary server, we automatically start out inside a
-	# transaction
-	if ($self->{'autocommit'} == 0) {
-		$self->{'in_tx'} = 1;
-	}
+    # if AutoCommit is set to 0 for the primary server, we automatically start out inside a
+    # transaction
+    if ($self->{'autocommit'} == 0) {
+        $self->{'in_tx'} = 1;
+    }
 
-	# set up arrayref to hold any error strings (usually DBI errors)
-	$self->{'errors'} = [];
+    # set up arrayref to hold any error strings (usually DBI errors)
+    $self->{'errors'} = [];
 
-	return bless($self, $class);
+    return bless($self, $class);
 }
 
 sub base_tables {
-	my ($self) = @_;
+    my ($self) = @_;
 
-	my $driver = lc($self->{'config'}->{'primary'}->{'driver'});
-	my $schema = $self->{'handles'}->{'primary'}->quote($self->{'config'}->{'primary'}->{'db'});
+    my $driver = lc($self->{'config'}->{'primary'}->{'driver'});
+    my $schema = $self->{'handles'}->{'primary'}->quote($self->{'config'}->{'primary'}->{'db'});
 
-	my ($sql);
+    my ($sql);
 
-	if ($driver eq 'mysql') {
-		$sql = qq{
-			select table_name
-			from information_schema.tables
-			where table_schema in ($schema)
-				and table_type = 'BASE TABLE'
-			order by table_name asc 
-		};
-	} elsif ($driver eq 'pg') {
-		# make sure we only list the relations visible in the current search_path
-		if (defined $self->{'config'}->{'primary'}->{'schemas'}
-				&& ref($self->{'config'}->{'primary'}->{'schemas'}) eq 'ARRAY') {
-			$schema = join(',', @{$self->{'config'}->{'primary'}->{'schemas'}});
-		} else {
-			$schema = q{'public'};
-		}
+    if ($driver eq 'mysql') {
+        $sql = qq{
+            select table_name
+            from information_schema.tables
+            where table_schema in ($schema)
+                and table_type = 'BASE TABLE'
+            order by table_name asc
+        };
+    } elsif ($driver eq 'pg') {
+        # make sure we only list the relations visible in the current search_path
+        if (defined $self->{'config'}->{'primary'}->{'schemas'}
+                && ref($self->{'config'}->{'primary'}->{'schemas'}) eq 'ARRAY') {
+            $schema = join(',', @{$self->{'config'}->{'primary'}->{'schemas'}});
+        } else {
+            $schema = q{'public'};
+        }
 
-		$sql = qq{
-			select c.relname
-			from pg_catalog.pg_class c
-				join pg_catalog.pg_roles r on (r.oid = c.relowner)
-				left join pg_catalog.pg_namespace n on (n.oid = c.relnamespace)
-			where c.relkind in ('r')
-				and n.nspname in ($schema)
-				and pg_catalog.pg_table_is_visible(c.oid)
-			order by relname asc
-		};
-	} elsif ($driver eq 'oracle') {
-		$sql = q{
-			select object_name
-			from user_objects
-			where object_type in ('TABLE')
-			order by object_name asc
-		};
-	} elsif ($driver eq 'db2') {
-		$sql = q{
-			select tabname
-			from syscat.tables
-			where tabschema not like 'SYS%' and type in ('T')
-			order by tabname asc
-		};
-	} else {
-		die dslog("This method is not yet implemented for your database server ($driver).");
-	}
+        $sql = qq{
+            select c.relname
+            from pg_catalog.pg_class c
+                join pg_catalog.pg_roles r on (r.oid = c.relowner)
+                left join pg_catalog.pg_namespace n on (n.oid = c.relnamespace)
+            where c.relkind in ('r')
+                and n.nspname in ($schema)
+                and pg_catalog.pg_table_is_visible(c.oid)
+            order by relname asc
+        };
+    } elsif ($driver eq 'oracle') {
+        $sql = q{
+            select object_name
+            from user_objects
+            where object_type in ('TABLE')
+            order by object_name asc
+        };
+    } elsif ($driver eq 'db2') {
+        $sql = q{
+            select tabname
+            from syscat.tables
+            where tabschema not like 'SYS%' and type in ('T')
+            order by tabname asc
+        };
+    } else {
+        die dslog("This method is not yet implemented for your database server ($driver).");
+    }
 
-	my $res = $self->do($sql);
+    my $res = $self->do($sql);
 
-	if ($res) {
-		my @tables = ();
+    if ($res) {
+        my @tables = ();
 
-		while ($res->next) {
-			push(@tables, $res->[0]);
-		}
+        while ($res->next) {
+            push(@tables, $res->[0]);
+        }
 
-		return @tables;
-	} else {
-		die dslog("Error encountered when retrieving list of tables: $DBI::errstr");
-	}
+        return @tables;
+    } else {
+        die dslog("Error encountered when retrieving list of tables: $DBI::errstr");
+    }
 }
 
 sub begin {
-	my ($self) = shift;
+    my ($self) = shift;
 
-	die dslog("Somehow there appears to be no driver defined for the primary database!")
-		unless defined $self->{'config'}->{'primary'}->{'driver'};
+    die dslog("Somehow there appears to be no driver defined for the primary database!")
+        unless defined $self->{'config'}->{'primary'}->{'driver'};
 
-	my $driver = lc($self->{'config'}->{'primary'}->{'driver'});
+    my $driver = lc($self->{'config'}->{'primary'}->{'driver'});
 
-	# If AutoCommit is turned off, new transactions are automatically started on
-	# connect and immediately after any existing transactions are closed (either
-	# through commit or rollback). This has the side-effect of causing begin()
-	# to trigger a fatal error from DBI's begin_work() every time it is called
-	# (in the "DBI Way of Doing Things" you never actually call begin_work()
-	# yourself if you turn off AutoCommit). Personally, I find this annoying
-	# and a bit counter-intuitive, so DBIx::DataStore will let you call begin()
-	# if you are currently in one of the implicitly created transactions and
-	# you have AutoCommit turned off *and* you have issued NO non-select
-	# statements to the database since either a) connecting or b) closing the
-	# last transaction.
-	if ($self->{'st_count'} == 0 && $self->{'in_tx'} == 1 && $self->{'autocommit'} == 0) {
-		return 1;
-	}
+    # If AutoCommit is turned off, new transactions are automatically started on
+    # connect and immediately after any existing transactions are closed (either
+    # through commit or rollback). This has the side-effect of causing begin()
+    # to trigger a fatal error from DBI's begin_work() every time it is called
+    # (in the "DBI Way of Doing Things" you never actually call begin_work()
+    # yourself if you turn off AutoCommit). Personally, I find this annoying
+    # and a bit counter-intuitive, so DBIx::DataStore will let you call begin()
+    # if you are currently in one of the implicitly created transactions and
+    # you have AutoCommit turned off *and* you have issued NO non-select
+    # statements to the database since either a) connecting or b) closing the
+    # last transaction.
+    if ($self->{'st_count'} == 0 && $self->{'in_tx'} == 1 && $self->{'autocommit'} == 0) {
+        return 1;
+    }
 
-	# We need to make sure the primary database server supports transactions,
-	# and further that it supports nested transactions if we're already inside
-	# one when ->begin() is called.
-	if ($driver eq 'mysql') {
-		if ($self->{'in_tx'} > 0) {
-			die dslog("MySQL does not support nested transactions!");
-		}
-	} elsif ($driver eq 'pg') {
-		if ($self->{'in_tx'} > 0) {
-			die dslog("PostgreSQL does not support nested transactions (use savepoints instead)!");
-		}
-	} elsif ($driver eq 'sqlite') {
-		if ($self->{'in_tx'} > 0) {
-			die dslog("SQLite does not support nested transactions!");
-		}
-	} elsif ($driver eq 'db2') {
-		if ($self->{'in_tx'} > 0) {
-			die dslog("DB2 does not support nested transactions (use savepoints instead)!");
-		}
-	}
+    # We need to make sure the primary database server supports transactions,
+    # and further that it supports nested transactions if we're already inside
+    # one when ->begin() is called.
+    if ($driver eq 'mysql') {
+        if ($self->{'in_tx'} > 0) {
+            die dslog("MySQL does not support nested transactions!");
+        }
+    } elsif ($driver eq 'pg') {
+        if ($self->{'in_tx'} > 0) {
+            die dslog("PostgreSQL does not support nested transactions (use savepoints instead)!");
+        }
+    } elsif ($driver eq 'sqlite') {
+        if ($self->{'in_tx'} > 0) {
+            die dslog("SQLite does not support nested transactions!");
+        }
+    } elsif ($driver eq 'db2') {
+        if ($self->{'in_tx'} > 0) {
+            die dslog("DB2 does not support nested transactions (use savepoints instead)!");
+        }
+    }
 
-	$self->{'handles'}->{'primary'}->begin_work
-		|| die dslog("Error encountered during attempt to begin transaction: $DBI::errstr");
+    $self->{'handles'}->{'primary'}->begin_work
+        || die dslog("Error encountered during attempt to begin transaction: $DBI::errstr");
 
-	$self->{'in_tx'}++;
-	return 1;
+    $self->{'in_tx'}++;
+    return 1;
 }
 
 sub commit {
-	my ($self) = @_;
+    my ($self) = @_;
 
-	die dslog("Commit attempted without any open transactions!") unless $self->{'in_tx'} > 0;
+    die dslog("Commit attempted without any open transactions!") unless $self->{'in_tx'} > 0;
 
-	$self->{'handles'}->{'primary'}->commit
-		|| die dslog("Error encountered during attempt to commit transaction: $DBI::errstr");
+    $self->{'handles'}->{'primary'}->commit
+        || die dslog("Error encountered during attempt to commit transaction: $DBI::errstr");
 
-	$self->{'in_tx'}--;
-	$self->{'st_count'} = 0;
+    $self->{'in_tx'}--;
+    $self->{'st_count'} = 0;
 
-	# if AutoCommit is turned off on the primary DB, then the closing of a transaction
-	# (either through a rollback or commit) automatically begins a new transaction, in
-	# which case we need to re-increment the in_tx count
-	if ($self->{'autocommit'} == 0) {
-		$self->{'in_tx'}++;
-	}
+    # if AutoCommit is turned off on the primary DB, then the closing of a transaction
+    # (either through a rollback or commit) automatically begins a new transaction, in
+    # which case we need to re-increment the in_tx count
+    if ($self->{'autocommit'} == 0) {
+        $self->{'in_tx'}++;
+    }
 
-	# reset the search path when AutoCommit is turned off (since everything, including
-	# the initial setting of this on connect happens within transactions)
-	if ($self->{'autocommit'} == 0 && defined $self->{'config'}->{'primary'}->{'schemas'}) {
-		_set_schema_searchpath($self->{'handles'}->{'primary'}, $self->{'config'}->{'primary'}->{'driver'},
-			$self->{'config'}->{'primary'}->{'schemas'});
-	}
+    # reset the search path when AutoCommit is turned off (since everything, including
+    # the initial setting of this on connect happens within transactions)
+    if ($self->{'autocommit'} == 0 && defined $self->{'config'}->{'primary'}->{'schemas'}) {
+        _set_schema_searchpath($self->{'handles'}->{'primary'}, $self->{'config'}->{'primary'}->{'driver'},
+            $self->{'config'}->{'primary'}->{'schemas'});
+    }
 
-	return 1;
+    return 1;
 }
 
 sub databases {
-	my ($self) = @_;
+    my ($self) = @_;
 
-	my $driver = lc($self->{'config'}->{'primary'}->{'driver'});
+    my $driver = lc($self->{'config'}->{'primary'}->{'driver'});
 
-	my ($sql);
+    my ($sql);
 
-	if ($driver eq 'mysql') {
-		$sql = q{
-			select schema_name
-			from information_schema.schemata
-			where schema_name not in ('information_schema','cluster')
-			order by schema_name asc
-		};
-	} elsif ($driver eq 'pg') {
-		$sql = q{
-			select d.datname
-			from pg_catalog.pg_database d
-				join pg_catalog.pg_roles r on (d.datdba = r.oid)
-			where datname not in ('postgres')
-				and datname not like 'template%'
-			order by datname asc
-		};
-	} elsif ($driver eq 'db2') {
-		$sql = q{
-			select schemaname
-			from syscat.schemata
-			where schemaname not like 'SYS%'
-			order by schemaname asc
-		};
-	} else {
-		die dslog("This method is not yet implemented for your database server ($driver).");
-	}
+    if ($driver eq 'mysql') {
+        $sql = q{
+            select schema_name
+            from information_schema.schemata
+            where schema_name not in ('information_schema','cluster')
+            order by schema_name asc
+        };
+    } elsif ($driver eq 'pg') {
+        $sql = q{
+            select d.datname
+            from pg_catalog.pg_database d
+                join pg_catalog.pg_roles r on (d.datdba = r.oid)
+            where datname not in ('postgres')
+                and datname not like 'template%'
+            order by datname asc
+        };
+    } elsif ($driver eq 'db2') {
+        $sql = q{
+            select schemaname
+            from syscat.schemata
+            where schemaname not like 'SYS%'
+            order by schemaname asc
+        };
+    } else {
+        die dslog("This method is not yet implemented for your database server ($driver).");
+    }
 
-	my $res = $self->do($sql);
+    my $res = $self->do($sql);
 
-	if ($res) {
-		my @schemas = ();
+    if ($res) {
+        my @schemas = ();
 
-		while ($res->next) {
-			push(@schemas, $res->[0]);
-		}
+        while ($res->next) {
+            push(@schemas, $res->[0]);
+        }
 
-		return @schemas;
-	} else {
-		die dslog("Error encountered when retrieving list of database schemas: $DBI::errstr");
-	}
+        return @schemas;
+    } else {
+        die dslog("Error encountered when retrieving list of database schemas: $DBI::errstr");
+    }
 }
 
 sub db_primary {
-	my ($self) = @_;
+    my ($self) = @_;
 
-	my %config = %{$self->{'config'}->{'primary'}};
-	$config{'name'} = 'primary';
+    my %config = %{$self->{'config'}->{'primary'}};
+    $config{'name'} = 'primary';
 
-	# remove "sensitive" fields from config
-	delete $config{'pass'} if defined $config{'pass'};
+    # remove "sensitive" fields from config
+    delete $config{'pass'} if defined $config{'pass'};
 
-	return { %config };
+    return { %config };
 }
 
 sub db_reader {
-	my ($self) = @_;
+    my ($self) = @_;
 
-	return unless defined $self->{'config'}->{'default_reader'}
-		&& exists $self->{'config'}->{'readers'}->{$self->{'config'}->{'default_reader'}};
+    return unless defined $self->{'config'}->{'default_reader'}
+        && exists $self->{'config'}->{'readers'}->{$self->{'config'}->{'default_reader'}};
 
-	my %config = %{$self->{'config'}->{'readers'}->{$self->{'config'}->{'default_reader'}}};
+    my %config = %{$self->{'config'}->{'readers'}->{$self->{'config'}->{'default_reader'}}};
 
-	delete $config{'pass'} if defined $config{'pass'};
+    delete $config{'pass'} if defined $config{'pass'};
 
-	return { %config };
+    return { %config };
 }
 
 sub do {
-	my ($self, @args) = @_;
+    my ($self, @args) = @_;
 
-	my $opts = {};
+    my $opts = {};
 
-	# check first argument to see if options hashref was passed in before a SQL statement
-	if (scalar(@args) > 1 && ref($args[0]) eq 'HASH') {
-		$opts = shift @args;
-	}
+    # check first argument to see if options hashref was passed in before a SQL statement
+    if (scalar(@args) > 1 && ref($args[0]) eq 'HASH') {
+        $opts = shift @args;
+    }
 
-	# Default the pager settings unless caller passed in their own values. A
-	# "page" value of <=0 denotes no paging to be used (IOW the query will not
-	# be limited (at least by us -- the caller might have their own LIMIT in
-	# there) and all possible results from the database will be available.
-	$opts->{'per_page'} = 25 unless defined $opts->{'per_page'} && $opts->{'per_page'} =~ /^\d+$/o;
-	$opts->{'page'} = -1 unless defined $opts->{'page'} && $opts->{'page'} =~ /^\d+$/o;
+    # Default the pager settings unless caller passed in their own values. A
+    # "page" value of <=0 denotes no paging to be used (IOW the query will not
+    # be limited (at least by us -- the caller might have their own LIMIT in
+    # there) and all possible results from the database will be available.
+    $opts->{'per_page'} = 25 unless defined $opts->{'per_page'} && $opts->{'per_page'} =~ /^\d+$/o;
+    $opts->{'page'} = -1 unless defined $opts->{'page'} && $opts->{'page'} =~ /^\d+$/o;
 
-	# allow for overriding of statement preparation & caching on a per-query basis
-	$opts->{'prepare'} = $self->{'config'}->{'prepare_statements'}
-			unless defined $opts->{'prepare'} && $opts->{'prepare'} =~ /^\d+$/o;
+    # allow for overriding of statement preparation & caching on a per-query basis
+    $opts->{'prepare'} = $self->{'config'}->{'prepare_statements'}
+            unless defined $opts->{'prepare'} && $opts->{'prepare'} =~ /^\d+$/o;
 
-	# pass the rest straight through for conversion from convenient-bindings to normal-bindings
-	my ($st_type, $sql, @binds) = _transform_bindings(@args);
+    # pass the rest straight through for conversion from convenient-bindings to normal-bindings
+    my ($st_type, $sql, @binds) = _transform_bindings(@args);
 
-	# Figure out which DB handler we'll be using. If we're inside of a transaction,
-	# it has to be the primary DB. But if we're not, then we check whether
-	# reader_failover is turned on; if it is not, we just blindly set the currently
-	# selected reader's handle, otherwise we go through the ping tests (keeping in
-	# mind the flag_bad_readers setting as well) to find a new reader DB if the
-	# current one doesn't succeed
-	my $dbh;
-	if ($self->{'in_tx'} > 0 || $st_type ne 'select') {
-		$dbh = $self->{'handles'}->{'primary'};
-	} else {
-		if (exists $self->{'config'}->{'reader_failover'} && $self->{'config'}->{'reader_failover'} == 1) {
-			my $flag_bad = exists $self->{'config'}->{'flag_bad_readers'} && $self->{'config'}->{'flag_bad_readers'} == 1
-				? 1 : 0;
-			if (!$self->{'handles'}->{'reader'}->do("select 1")) {
-				if ($self->{'config'}->{'default_reader'} eq 'primary') {
-					# current reader was the primary DB... we're in trouble now
-					die dslog("Primary database server failed connectivity test.");
-				}
+    # Figure out which DB handler we'll be using. If we're inside of a transaction,
+    # it has to be the primary DB. But if we're not, then we check whether
+    # reader_failover is turned on; if it is not, we just blindly set the currently
+    # selected reader's handle, otherwise we go through the ping tests (keeping in
+    # mind the flag_bad_readers setting as well) to find a new reader DB if the
+    # current one doesn't succeed
+    my $dbh;
+    if ($self->{'in_tx'} > 0 || $st_type ne 'select') {
+        $dbh = $self->{'handles'}->{'primary'};
+    } else {
+        if (exists $self->{'config'}->{'reader_failover'} && $self->{'config'}->{'reader_failover'} == 1) {
+            my $flag_bad = exists $self->{'config'}->{'flag_bad_readers'} && $self->{'config'}->{'flag_bad_readers'} == 1
+                ? 1 : 0;
+            if (!$self->{'handles'}->{'reader'}->do("select 1")) {
+                if ($self->{'config'}->{'default_reader'} eq 'primary') {
+                    # current reader was the primary DB... we're in trouble now
+                    die dslog("Primary database server failed connectivity test.");
+                }
 
-				my $reader_found = 0;
-				# if flag_bad_readers is not turned on, we need to have a quasi-reasonable limit to the number
-				# attempts we'll make to find a new reader, since the @new_readers list will never exhaust
-				# itself (all readers will end up in it every single time, just in a random order)
-				my $check_limit = scalar(keys(%{$self->{'config'}->{'readers'}})) * 2;
+                my $reader_found = 0;
+                # if flag_bad_readers is not turned on, we need to have a quasi-reasonable limit to the number
+                # attempts we'll make to find a new reader, since the @new_readers list will never exhaust
+                # itself (all readers will end up in it every single time, just in a random order)
+                my $check_limit = scalar(keys(%{$self->{'config'}->{'readers'}})) * 2;
 
-				CHECK_READER:
-				while (!$reader_found) {
-					if ($check_limit < 1) {
-						dslog("Exhausted connection attempts to new reader databases. Giving up.") if DEBUG();
-						last CHECK_READER;
-					}
-					dslog("Current reader $self->{'config'}->{'default_reader'} failed ping test. Choosing new reader.")
-						if DEBUG();
+                CHECK_READER:
+                while (!$reader_found) {
+                    if ($check_limit < 1) {
+                        dslog("Exhausted connection attempts to new reader databases. Giving up.") if DEBUG();
+                        last CHECK_READER;
+                    }
+                    dslog("Current reader $self->{'config'}->{'default_reader'} failed ping test. Choosing new reader.")
+                        if DEBUG();
 
-					my (@new_readers);
-					if ($flag_bad) {
-						$self->{'config'}->{'readers'}->{ $self->{'config'}->{'default_reader'} }->{'failure'} = time();
-						@new_readers = grep { !exists $self->{'config'}->{'readers'}->{$_}->{'failure'} }
-							keys %{$self->{'config'}->{'readers'}};
-					} else {
-						@new_readers = keys %{$self->{'config'}->{'readers'}};
-					}
+                    my (@new_readers);
+                    if ($flag_bad) {
+                        $self->{'config'}->{'readers'}->{ $self->{'config'}->{'default_reader'} }->{'failure'} = time();
+                        @new_readers = grep { !exists $self->{'config'}->{'readers'}->{$_}->{'failure'} }
+                            keys %{$self->{'config'}->{'readers'}};
+                    } else {
+                        @new_readers = keys %{$self->{'config'}->{'readers'}};
+                    }
 
-					last CHECK_READER if scalar(@new_readers) < 1;
+                    last CHECK_READER if scalar(@new_readers) < 1;
 
-					# randomly sort the new reader DB list
-					my $i = $#new_readers;
-					while ($i--) {
-						my $j = int rand ($i+1);
-						@new_readers[$i,$j] = @new_readers[$j,$i];
-					}
+                    # randomly sort the new reader DB list
+                    my $i = $#new_readers;
+                    while ($i--) {
+                        my $j = int rand ($i+1);
+                        @new_readers[$i,$j] = @new_readers[$j,$i];
+                    }
 
-					my $reader = $new_readers[0];
+                    my $reader = $new_readers[0];
 
-					if ($dbh = _db_connect(
-						cache => $self->{'config'}->{'cache_connections'},
-						%{$self->{'config'}->{'readers'}->{$reader}}))
-					{
-						# touch of extra paranoia... make sure we really did connect properly (since
-						# there is an ever-so-slight chance that connection caching, if turned on,
-						# might be deceiving us)
-						if ($dbh->do("select 1")) {
-							$self->{'config'}->{'default_reader'} = $reader;
-							$self->{'handles'}->{'reader'} = $dbh;
-							$reader_found = 1;
-						}
-					}
-					$check_limit--;
-				}
+                    if ($dbh = _db_connect(
+                        cache => $self->{'config'}->{'cache_connections'},
+                        %{$self->{'config'}->{'readers'}->{$reader}}))
+                    {
+                        # touch of extra paranoia... make sure we really did connect properly (since
+                        # there is an ever-so-slight chance that connection caching, if turned on,
+                        # might be deceiving us)
+                        if ($dbh->do("select 1")) {
+                            $self->{'config'}->{'default_reader'} = $reader;
+                            $self->{'handles'}->{'reader'} = $dbh;
+                            $reader_found = 1;
+                        }
+                    }
+                    $check_limit--;
+                }
 
-				# if a new reader wasn't found, make one last attempt by pinging the primary and using it
-				if (!$reader_found) {
-					if ($self->{'handles'}->{'primary'}->do("select 1")) {
-						$self->{'handles'}->{'reader'} = $self->{'handles'}->{'primary'};
-						$self->{'config'}->{'default_reader'} = 'primary';
-						$dbh = $self->{'handles'}->{'primary'};
-					} else {
-						die dslog("Failure attempting to fall back on primary database for reads after all readers failed.");
-					}
-				}
-			} else {
-				$dbh = $self->{'handles'}->{'reader'};
-			}
-		} else {
-			$dbh = $self->{'handles'}->{'reader'};
-		}
-	}
+                # if a new reader wasn't found, make one last attempt by pinging the primary and using it
+                if (!$reader_found) {
+                    if ($self->{'handles'}->{'primary'}->do("select 1")) {
+                        $self->{'handles'}->{'reader'} = $self->{'handles'}->{'primary'};
+                        $self->{'config'}->{'default_reader'} = 'primary';
+                        $dbh = $self->{'handles'}->{'primary'};
+                    } else {
+                        die dslog("Failure attempting to fall back on primary database for reads after all readers failed.");
+                    }
+                }
+            } else {
+                $dbh = $self->{'handles'}->{'reader'};
+            }
+        } else {
+            $dbh = $self->{'handles'}->{'reader'};
+        }
+    }
 
-	# if we intend to bypass normal statement preparation with placeholders, we need to
-	# now replace all of them with their actual values (properly quoted, of course) so
-	# the underlying DBD::* driver doesn't spend time on this
-	if (!$opts->{'prepare'}) {
-		dslog("Manually replacing placeholders prior to statement execution.") if DEBUG();
-		$sql =~ s{(\s+|,|\(|\=)\?(\s*)}{$1 . $dbh->quote(shift(@binds)) . $2}egsix;
-	}
+    # if we intend to bypass normal statement preparation with placeholders, we need to
+    # now replace all of them with their actual values (properly quoted, of course) so
+    # the underlying DBD::* driver doesn't spend time on this
+    if (!$opts->{'prepare'}) {
+        dslog("Manually replacing placeholders prior to statement execution.") if DEBUG();
+        $sql =~ s{(\s+|,|\(|\=)\?(\s*)}{$1 . $dbh->quote(shift(@binds)) . $2}egsix;
+    }
 
-	my $unpaged_sql = $sql;
+    my $unpaged_sql = $sql;
 
-	if ($opts->{'page'} > 0) {
-		# Caller wants auto-paging, so validate that the original query doesn't end with a
-		# LIMIT clause and add our own
-		my $driver = $self->{'in_tx'} > 0
-			? lc($self->{'config'}->{'primary'}->{'driver'})
-			: lc($self->{'config'}->{'readers'}->{$self->{'config'}->{'default_reader'}}->{'driver'});
+    if ($opts->{'page'} > 0) {
+        # Caller wants auto-paging, so validate that the original query doesn't end with a
+        # LIMIT clause and add our own
+        my $driver = $self->{'in_tx'} > 0
+            ? lc($self->{'config'}->{'primary'}->{'driver'})
+            : lc($self->{'config'}->{'readers'}->{$self->{'config'}->{'default_reader'}}->{'driver'});
 
-		# Warn if it appears there is already a limiting clause in the original query (but in
-		# the event we misidentify something else as a limiting clause, give it a chance to run
-		# and let the database server reject it if it really is invalid).
-		if ($sql =~ /limit\s+\d+(\s+offset\s+\d+|\s*,\s*\d+)\s*$/ois
-			|| $sql =~ /rows\s+\d+(\s+to\s+\d+)\s*$/ois
-		) {
-			dslog("Paging requested on a query that appears to already have a limiting clause. Attempting anyway.")
-				if DEBUG();
-		}
+        # Warn if it appears there is already a limiting clause in the original query (but in
+        # the event we misidentify something else as a limiting clause, give it a chance to run
+        # and let the database server reject it if it really is invalid).
+        if ($sql =~ /limit\s+\d+(\s+offset\s+\d+|\s*,\s*\d+)\s*$/ois
+            || $sql =~ /rows\s+\d+(\s+to\s+\d+)\s*$/ois
+        ) {
+            dslog("Paging requested on a query that appears to already have a limiting clause. Attempting anyway.")
+                if DEBUG();
+        }
 
-		my $limit_offset = ($opts->{'page'} - 1) * $opts->{'per_page'};
-		$limit_offset = 0 unless $limit_offset > 0;
-		my $limit_last = $limit_offset + $opts->{'per_page'} - 1;
+        my $limit_offset = ($opts->{'page'} - 1) * $opts->{'per_page'};
+        $limit_offset = 0 unless $limit_offset > 0;
+        my $limit_last = $limit_offset + $opts->{'per_page'} - 1;
 
-		# Add appropriate limiting clause syntax based on current database server
-		if (exists { map { $_ => '' } qw( mysql pg sqlite ) }->{$driver}) {
-			$sql .= qq{ limit $opts->{'per_page'} offset $limit_offset };
-		} elsif (exists { map { $_ => '' } qw( interbase firebird ) }->{$driver}) {
-			$sql .= qq{ rows $limit_offset to $limit_last };
-		} else {
-			# TODO: Possibly use SQL::Abstract::Limit to handle other databases (which all pretty
-			# pretty much support much more complicated ways of achieving the same effect).
-			die dslog("Automated result set paging is not currently supported for this database server ($driver). Sorry.");
-		}
-	}
+        # Add appropriate limiting clause syntax based on current database server
+        if (exists { map { $_ => '' } qw( mysql pg sqlite ) }->{$driver}) {
+            $sql .= qq{ limit $opts->{'per_page'} offset $limit_offset };
+        } elsif (exists { map { $_ => '' } qw( interbase firebird ) }->{$driver}) {
+            $sql .= qq{ rows $limit_offset to $limit_last };
+        } else {
+            # TODO: Possibly use SQL::Abstract::Limit to handle other databases (which all pretty
+            # pretty much support much more complicated ways of achieving the same effect).
+            die dslog("Automated result set paging is not currently supported for this database server ($driver). Sorry.");
+        }
+    }
 
-	# prepare & execute the query
-	my ($dbi_res, $sth);
+    # prepare & execute the query
+    my ($dbi_res, $sth);
 
-	my $error = 0;
+    my $error = 0;
 
-	if ($opts->{'prepare'}) {
-		if (defined $self->{'config'}->{'cache_statements'} && $self->{'config'}->{'cache_statements'} == 1) {
-			# DBI prepare_cached's "if_active" argument (the third one) is passed in as 3 since
-			# that is supposed to be the safest method (if there's a cached version of the same
-			# query, but it's currently active, it's removed from the cache and a new statement
-			# is created -- thus the currently-active handle that was in the cache is not
-			# affected in any way by what may be done with the new handle)
-			unless ($sth = $dbh->prepare_cached($sql, $opts, 3)) {
-				dslog("Error encountered when preparing cached SQL statement: $DBI::errstr") if DEBUG();
-				$error = 1;
-			}
-		} else {
-			unless ($sth = $dbh->prepare($sql, $opts)) {
-				dslog("Error encountered when preparing SQL statement: $DBI::errstr") if DEBUG();
-				$error = 1;
-			}
-		}
+    if ($opts->{'prepare'}) {
+        if (defined $self->{'config'}->{'cache_statements'} && $self->{'config'}->{'cache_statements'} == 1) {
+            # DBI prepare_cached's "if_active" argument (the third one) is passed in as 3 since
+            # that is supposed to be the safest method (if there's a cached version of the same
+            # query, but it's currently active, it's removed from the cache and a new statement
+            # is created -- thus the currently-active handle that was in the cache is not
+            # affected in any way by what may be done with the new handle)
+            unless ($sth = $dbh->prepare_cached($sql, $opts, 3)) {
+                dslog("Error encountered when preparing cached SQL statement: $DBI::errstr") if DEBUG();
+                $error = 1;
+            }
+        } else {
+            unless ($sth = $dbh->prepare($sql, $opts)) {
+                dslog("Error encountered when preparing SQL statement: $DBI::errstr") if DEBUG();
+                $error = 1;
+            }
+        }
 
-		if ($error == 0) {
-			unless ($dbi_res = $sth->execute(@binds)) {
-				dslog("Error encountered when executing SQL statement: $DBI::errstr") if DEBUG();
-				$error = 1;
-			}
-		}
-	} else {
-		# query will run without prior preparation (this can be desired with some databases on
-		# various queries where to come up with the best (or even a reasonable) plan requires
-		# the database's planner to know the actual values instead of having placeholders)...
-		# if we're in here, it also means that _transform_binds() removed all the placeholders
-		# and put in the actual values, so we don't need to pass @binds into execute()
-		if ($st_type ne 'select' && $sql !~ /\s+returning\s+\w+(\s*,\s*\w+)*\s*/ois) {
-			# no intermediary statement handler necessary, since we're apparently issuing
-			# non-SELECT DML that does not end with a RETURNING clause
-			$sth = { NAME => [], NAME_hash => [] }; # dummy these up so we don't die below
+        if ($error == 0) {
+            unless ($dbi_res = $sth->execute(@binds)) {
+                dslog("Error encountered when executing SQL statement: $DBI::errstr") if DEBUG();
+                $error = 1;
+            }
+        }
+    } else {
+        # query will run without prior preparation (this can be desired with some databases on
+        # various queries where to come up with the best (or even a reasonable) plan requires
+        # the database's planner to know the actual values instead of having placeholders)...
+        # if we're in here, it also means that _transform_binds() removed all the placeholders
+        # and put in the actual values, so we don't need to pass @binds into execute()
+        if ($st_type ne 'select' && $sql !~ /\s+returning\s+\w+(\s*,\s*\w+)*\s*/ois) {
+            # no intermediary statement handler necessary, since we're apparently issuing
+            # non-SELECT DML that does not end with a RETURNING clause
+            $sth = { NAME => [], NAME_hash => [] }; # dummy these up so we don't die below
 
-			unless ($dbi_res = $dbh->do($sql)) {
-				dslog("Error calling DBI do() method on pre-bound, unprepared SQL statement: $DBI::errstr") if DEBUG();
-				$error = 1;
-			}
-		} else {
-			if ($sth = $dbh->prepare($sql, $opts)) {
-				unless ($dbi_res = $sth->execute()) {
-					dslog("Error executing pre-bound SQL statement: $DBI::errstr") if DEBUG();
-					$error = 1;
-				}
-			} else {
-				dslog("Error encountered preparing pre-bound SQL statement: $DBI::errstr") if DEBUG();
-				$error = 1;
-			}
-		}
-	}
+            unless ($dbi_res = $dbh->do($sql)) {
+                dslog("Error calling DBI do() method on pre-bound, unprepared SQL statement: $DBI::errstr") if DEBUG();
+                $error = 1;
+            }
+        } else {
+            if ($sth = $dbh->prepare($sql, $opts)) {
+                unless ($dbi_res = $sth->execute()) {
+                    dslog("Error executing pre-bound SQL statement: $DBI::errstr") if DEBUG();
+                    $error = 1;
+                }
+            } else {
+                dslog("Error encountered preparing pre-bound SQL statement: $DBI::errstr") if DEBUG();
+                $error = 1;
+            }
+        }
+    }
 
-	$self->{'st_count'}++ unless $st_type eq 'select';
+    $self->{'st_count'}++ unless $st_type eq 'select';
 
-	# Set up skeleton for a DBIx::DataStore::ResultSet object
-	my $results = DBIx::DataStore::ResultRow->new({},{},[]);
-	bless($results, 'DBIx::DataStore::ResultSet');
+    # Set up skeleton for a DBIx::DataStore::ResultSet object
+    my $results = DBIx::DataStore::ResultRow->new({},{},[]);
+    bless($results, 'DBIx::DataStore::ResultSet');
 
-	$$results->{'error'} = $DBI::errstr if $error;
+    $$results->{'error'} = $DBI::errstr if $error;
 
-	$$results->{'_st_type'} = $st_type;
-	$$results->{'_sql'} = $unpaged_sql;
-	$$results->{'_binds'} = [ @binds ];
+    $$results->{'_st_type'} = $st_type;
+    $$results->{'_sql'} = $unpaged_sql;
+    $$results->{'_binds'} = [ @binds ];
 
-	$$results->{'_rows'} = $dbi_res;
-	$$results->{'_dbh'} = $dbh;
-	$$results->{'_sth'} = $sth;
+    $$results->{'_rows'} = $dbi_res;
+    $$results->{'_dbh'} = $dbh;
+    $$results->{'_sth'} = $sth;
 
-	$$results->{'_page_num'} = $opts->{'page'};
-	$$results->{'_page_per'} = $opts->{'per_page'};
+    $$results->{'_page_num'} = $opts->{'page'};
+    $$results->{'_page_per'} = $opts->{'per_page'};
 
-	$$results->{'impl'}->[DBIx::DataStore::ResultRow::KEYS()] = $sth->{'NAME'};
-	$$results->{'impl'}->[DBIx::DataStore::ResultRow::INDEX()] = $sth->{'NAME_hash'};
+    $$results->{'impl'}->[DBIx::DataStore::ResultRow::KEYS()] = $sth->{'NAME'};
+    $$results->{'impl'}->[DBIx::DataStore::ResultRow::INDEX()] = $sth->{'NAME_hash'};
 
-	return $results;
+    return $results;
 }
 
 sub in_transaction {
-	my ($self) = @_;
+    my ($self) = @_;
 
-	return 1 if defined $self->{'in_tx'} && $self->{'in_tx'} > 0;
-	return;
+    return 1 if defined $self->{'in_tx'} && $self->{'in_tx'} > 0;
+    return;
 }
 
 sub last_insert_id {
-	my ($self, @args) = @_;
+    my ($self, @args) = @_;
 
-	my $driver = lc($self->{'config'}->{'primary'}->{'driver'});
+    my $driver = lc($self->{'config'}->{'primary'}->{'driver'});
 
-	# fill in pass-through args with dummy values, since MySQL & Informix don't actually
-	# support the full possibilities of this DBI function
-	if (exists { map { $_ => '' } qw( mysql informix ) }->{$driver}) {
-		$args[$_] = 'X' for (1..3);
-	}
+    # fill in pass-through args with dummy values, since MySQL & Informix don't actually
+    # support the full possibilities of this DBI function
+    if (exists { map { $_ => '' } qw( mysql informix ) }->{$driver}) {
+        $args[$_] = 'X' for (1..3);
+    }
 
-	if (my $id = $self->{'handles'}->{'primary'}->last_insert_id(@args)) {
-		return $id;
-	} else {
-		die dslog("Error obtaining the Last Insert ID: $DBI::errstr");
-	}
+    if (my $id = $self->{'handles'}->{'primary'}->last_insert_id(@args)) {
+        return $id;
+    } else {
+        die dslog("Error obtaining the Last Insert ID: $DBI::errstr");
+    }
 }
 
 sub ping {
-	my ($self) = @_;
+    my ($self) = @_;
 
-	# Make sure we don't double-ping the primary server if it is both primary & reader
-	my @servers = $self->{'config'}->{'default_reader'} eq 'primary' ? qw( primary ) : qw( primary reader );
+    # Make sure we don't double-ping the primary server if it is both primary & reader
+    my @servers = $self->{'config'}->{'default_reader'} eq 'primary' ? qw( primary ) : qw( primary reader );
 
-	foreach my $server (@servers) {
-		if (!$self->{'handles'}->{$server}->do("select 1")) {
-			dslog("Error pinging $server database server: " . $self->{'handles'}->{$server}->errstr) if DEBUG();
-			return;
-		}
-	}
+    foreach my $server (@servers) {
+        if (!$self->{'handles'}->{$server}->do("select 1")) {
+            dslog("Error pinging $server database server: " . $self->{'handles'}->{$server}->errstr) if DEBUG();
+            return;
+        }
+    }
 
-	return 1;
+    return 1;
 }
 
 sub rollback {
-	my ($self, $savepoint) = @_;
+    my ($self, $savepoint) = @_;
 
-	die dslog("Rollback attempted without any open transactions!") unless $self->{'in_tx'} > 0;
+    die dslog("Rollback attempted without any open transactions!") unless $self->{'in_tx'} > 0;
 
-	# If a savepoint name was passed in, we have to issue the rollback statement ourselves,
-	# since DBI doesn't support that syntax through it's rollback() method and an informally
-	# proposed rollbackto() method on dbi-users hasn't been accepted by the DBI devs yet.
-	if (defined $savepoint) {
-		my $driver = lc($self->{'config'}->{'primary'}->{'driver'});
-		my ($sql);
+    # If a savepoint name was passed in, we have to issue the rollback statement ourselves,
+    # since DBI doesn't support that syntax through it's rollback() method and an informally
+    # proposed rollbackto() method on dbi-users hasn't been accepted by the DBI devs yet.
+    if (defined $savepoint) {
+        my $driver = lc($self->{'config'}->{'primary'}->{'driver'});
+        my ($sql);
 
-		if ($driver eq 'sybase') {
-			die dslog("Savepoints are not supported by Sybase!");
-		} elsif ($driver eq 'pg') {
-			if (!$self->{'handles'}->{'primary'}->pg_rollback_to($savepoint)) {
-				die dslog("Error rolling back to savepoint '$savepoint':", $self->{'handles'}->{'primary'}->errstr);
-			}
-		} else {
-			$savepoint = $self->{'handles'}->{'primary'}->quote($savepoint)
-				|| die dslog("Error encountered when safe-quoting savepoint name:", $self->{'handles'}->{'primary'}->errstr);
+        if ($driver eq 'sybase') {
+            die dslog("Savepoints are not supported by Sybase!");
+        } elsif ($driver eq 'pg') {
+            if (!$self->{'handles'}->{'primary'}->pg_rollback_to($savepoint)) {
+                die dslog("Error rolling back to savepoint '$savepoint':", $self->{'handles'}->{'primary'}->errstr);
+            }
+        } else {
+            $savepoint = $self->{'handles'}->{'primary'}->quote($savepoint)
+                || die dslog("Error encountered when safe-quoting savepoint name:", $self->{'handles'}->{'primary'}->errstr);
 
-			$sql = qq{ rollback to savepoint $savepoint };
+            $sql = qq{ rollback to savepoint $savepoint };
 
-			if (!$self->{'handles'}->{'primary'}->do($sql)) {
-				die dslog("Error rolling back to savepoint '$savepoint':", $self->{'handles'}->{'primary'}->errstr);
-			}
-		}
+            if (!$self->{'handles'}->{'primary'}->do($sql)) {
+                die dslog("Error rolling back to savepoint '$savepoint':", $self->{'handles'}->{'primary'}->errstr);
+            }
+        }
 
-		# Note that we do not decrement the transaction level counter, since we rolled
-		# back *within* a transaction, we didn't rollback the transaction itself.
-	} else {
-		$self->{'handles'}->{'primary'}->rollback
-			|| die dslog("Error encountered during attempt to roll back transaction: $DBI::errstr");
+        # Note that we do not decrement the transaction level counter, since we rolled
+        # back *within* a transaction, we didn't rollback the transaction itself.
+    } else {
+        $self->{'handles'}->{'primary'}->rollback
+            || die dslog("Error encountered during attempt to roll back transaction: $DBI::errstr");
 
-		$self->{'in_tx'}--;
-		$self->{'st_count'} = 0;
-	}
+        $self->{'in_tx'}--;
+        $self->{'st_count'} = 0;
+    }
 
-	# if AutoCommit is turned off on the primary DB, then the closing of a transaction
-	# (either through a rollback or commit) automatically begins a new transaction, in
-	# which case we need to re-increment the in_tx count
-	if ($self->{'autocommit'} == 0) {
-		$self->{'in_tx'}++;
-	}
+    # if AutoCommit is turned off on the primary DB, then the closing of a transaction
+    # (either through a rollback or commit) automatically begins a new transaction, in
+    # which case we need to re-increment the in_tx count
+    if ($self->{'autocommit'} == 0) {
+        $self->{'in_tx'}++;
+    }
 
-	# reset schema search path if AutoCommit is turned off (since the setting of the
-	# search path on connect would have occurred inside a transaction -- how annoying)
-	if ($self->{'autocommit'} == 0 && defined $self->{'config'}->{'primary'}->{'schemas'}) {
-		_set_schema_searchpath($self->{'handles'}->{'primary'}, $self->{'config'}->{'primary'}->{'driver'},
-			$self->{'config'}->{'primary'}->{'schemas'});
-	}
+    # reset schema search path if AutoCommit is turned off (since the setting of the
+    # search path on connect would have occurred inside a transaction -- how annoying)
+    if ($self->{'autocommit'} == 0 && defined $self->{'config'}->{'primary'}->{'schemas'}) {
+        _set_schema_searchpath($self->{'handles'}->{'primary'}, $self->{'config'}->{'primary'}->{'driver'},
+            $self->{'config'}->{'primary'}->{'schemas'});
+    }
 
-	return 1;
+    return 1;
 }
 
 sub savepoint {
-	my ($self, $savepoint) = @_;
+    my ($self, $savepoint) = @_;
 
-	die dslog("Cannot create a savepoint outside of a transaction context!") unless $self->{'in_tx'} > 0;
-	die dslog("No savepoint name was provided!") unless defined $savepoint && $savepoint =~ /\w+/o;
+    die dslog("Cannot create a savepoint outside of a transaction context!") unless $self->{'in_tx'} > 0;
+    die dslog("No savepoint name was provided!") unless defined $savepoint && $savepoint =~ /\w+/o;
 
-	my $driver = lc($self->{'config'}->{'primary'}->{'driver'});
+    my $driver = lc($self->{'config'}->{'primary'}->{'driver'});
 
-	# DBI does not provide savepoint related methods (yet, at least -- there's been discussion
-	# on the mailing lists about whether or not it should, and if so what they should be), so
-	# we need to just build the statement ourself and issue it.
-	my ($sql);
+    # DBI does not provide savepoint related methods (yet, at least -- there's been discussion
+    # on the mailing lists about whether or not it should, and if so what they should be), so
+    # we need to just build the statement ourself and issue it.
+    my ($sql);
 
-	if ($driver eq 'sybase') {
-		die dslog("Sybase does not support transaction savepoints!");
-	} elsif ($driver eq 'pg') {
-		if (!$self->{'handles'}->{'primary'}->pg_savepoint($savepoint)) {
-			die dslog("Error creating transaction savepoint '$savepoint': " . $self->{'handles'}->{'primary'}->errstr);
-		}
-	} else {
-		$savepoint = $self->{'handles'}->{'primary'}->quote($savepoint)
-			|| die dslog("Error encountered when safe-quoting savepoint name: " . $self->{'handles'}->{'primary'}->errstr);
+    if ($driver eq 'sybase') {
+        die dslog("Sybase does not support transaction savepoints!");
+    } elsif ($driver eq 'pg') {
+        if (!$self->{'handles'}->{'primary'}->pg_savepoint($savepoint)) {
+            die dslog("Error creating transaction savepoint '$savepoint': " . $self->{'handles'}->{'primary'}->errstr);
+        }
+    } else {
+        $savepoint = $self->{'handles'}->{'primary'}->quote($savepoint)
+            || die dslog("Error encountered when safe-quoting savepoint name: " . $self->{'handles'}->{'primary'}->errstr);
 
-		$sql = qq{ savepoint $savepoint };
+        $sql = qq{ savepoint $savepoint };
 
-		if (!$self->{'handles'}->{'primary'}->do($sql)) {
-			die dslog("Error creating transaction savepoint '$savepoint': " . $self->{'handles'}->{'primary'}->errstr);
-		}
-	}
+        if (!$self->{'handles'}->{'primary'}->do($sql)) {
+            die dslog("Error creating transaction savepoint '$savepoint': " . $self->{'handles'}->{'primary'}->errstr);
+        }
+    }
 
-	return 1;
+    return 1;
 }
 
 sub schemas {
-	my ($self, $schemas) = @_;
+    my ($self, $schemas) = @_;
 
-	if (defined $schemas && ref($schemas) eq 'ARRAY') {
-		dslog(q{Got request to change schemas on existing connection.}) if DEBUG() >= 2;
-		$self->{'config'}->{'primary'}->{'schemas'} = [@{$schemas}];
-		$self->{'config'}->{'readers'}->{$self->{'reader'}}->{'schemas'} = $self->{'config'}->{'primary'}->{'schemas'}
-			if $self->{'reader'} ne 'primary';
-		_set_schema_searchpath(
-			$self->{'handles'}->{'primary'},
-			$self->{'config'}->{'primary'}->{'driver'},
-			$schemas
-		);
-		_set_schema_searchpath(
-			$self->{'handles'}->{'reader'},
-			$self->{'config'}->{'readers'}->{$self->{'reader'}}->{'driver'},
-			$schemas
-		) if $self->{'reader'} ne 'primary';
-	} else {
-		dslog(q{Current schema search path requested.}) if DEBUG() >= 4;
-		return @{$self->{'config'}->{'primary'}->{'schemas'}}
-			if defined $self->{'config'}->{'primary'}->{'schemas'}
-				&& ref($self->{'config'}->{'primary'}->{'schemas'}) eq 'ARRAY'
-				&& scalar(@{$self->{'config'}->{'primary'}->{'schemas'}}) > 0;
-	}
+    if (defined $schemas && ref($schemas) eq 'ARRAY') {
+        dslog(q{Got request to change schemas on existing connection.}) if DEBUG() >= 2;
+        $self->{'config'}->{'primary'}->{'schemas'} = [@{$schemas}];
+        $self->{'config'}->{'readers'}->{$self->{'reader'}}->{'schemas'} = $self->{'config'}->{'primary'}->{'schemas'}
+            if $self->{'reader'} ne 'primary';
+        _set_schema_searchpath(
+            $self->{'handles'}->{'primary'},
+            $self->{'config'}->{'primary'}->{'driver'},
+            $schemas
+        );
+        _set_schema_searchpath(
+            $self->{'handles'}->{'reader'},
+            $self->{'config'}->{'readers'}->{$self->{'reader'}}->{'driver'},
+            $schemas
+        ) if $self->{'reader'} ne 'primary';
+    } else {
+        dslog(q{Current schema search path requested.}) if DEBUG() >= 4;
+        return @{$self->{'config'}->{'primary'}->{'schemas'}}
+            if defined $self->{'config'}->{'primary'}->{'schemas'}
+                && ref($self->{'config'}->{'primary'}->{'schemas'}) eq 'ARRAY'
+                && scalar(@{$self->{'config'}->{'primary'}->{'schemas'}}) > 0;
+    }
 
-	return;
+    return;
 }
 
 sub servers {
-	my ($self) = @_;
+    my ($self) = @_;
 
-	my @servers = ();
+    my @servers = ();
 
-	my %config = %{$self->{'config'}->{'primary'}};
-	$config{'name'} = 'primary';
-	delete $config{'password'} if defined $config{'password'};
+    my %config = %{$self->{'config'}->{'primary'}};
+    $config{'name'} = 'primary';
+    delete $config{'password'} if defined $config{'password'};
 
-	push(@servers, { %config });
+    push(@servers, { %config });
 
-	foreach my $reader (sort keys %{$self->{'config'}->{'readers'}}) {
-		%config = %{$self->{'config'}->{'readers'}->{$reader}};
-		delete $config{'password'} if defined $config{'password'};
-		$config{'name'} = $reader;
-		push(@servers, { %config });
-	}
+    foreach my $reader (sort keys %{$self->{'config'}->{'readers'}}) {
+        %config = %{$self->{'config'}->{'readers'}->{$reader}};
+        delete $config{'password'} if defined $config{'password'};
+        $config{'name'} = $reader;
+        push(@servers, { %config });
+    }
 
-	return @servers;
+    return @servers;
 }
 
 sub tables {
-	my ($self) = @_;
+    my ($self) = @_;
 
-	my $driver = lc($self->{'config'}->{'primary'}->{'driver'});
-	my $schema = $self->{'handles'}->{'primary'}->quote($self->{'config'}->{'primary'}->{'db'});
+    my $driver = lc($self->{'config'}->{'primary'}->{'driver'});
+    my $schema = $self->{'handles'}->{'primary'}->quote($self->{'config'}->{'primary'}->{'db'});
 
-	my ($sql);
+    my ($sql);
 
-	if ($driver eq 'mysql') {
-		$sql = qq{
-			select table_name
-			from information_schema.tables
-			where table_schema in ($schema)
-			order by table_name asc 
-		};
-	} elsif ($driver eq 'pg') {
-		# make sure we only list the relations visible in the current search_path
-		if (defined $self->{'config'}->{'primary'}->{'schemas'}
-				&& ref($self->{'config'}->{'primary'}->{'schemas'}) eq 'ARRAY') {
-			$schema = join(',', @{$self->{'config'}->{'primary'}->{'schemas'}});
-		} else {
-			$schema = q{'public'};
-		}
+    if ($driver eq 'mysql') {
+        $sql = qq{
+            select table_name
+            from information_schema.tables
+            where table_schema in ($schema)
+            order by table_name asc
+        };
+    } elsif ($driver eq 'pg') {
+        # make sure we only list the relations visible in the current search_path
+        if (defined $self->{'config'}->{'primary'}->{'schemas'}
+                && ref($self->{'config'}->{'primary'}->{'schemas'}) eq 'ARRAY') {
+            $schema = join(',', @{$self->{'config'}->{'primary'}->{'schemas'}});
+        } else {
+            $schema = q{'public'};
+        }
 
-		$sql = qq{
-			select c.relname
-			from pg_catalog.pg_class c
-				join pg_catalog.pg_roles r on (r.oid = c.relowner)
-				left join pg_catalog.pg_namespace n on (n.oid = c.relnamespace)
-			where c.relkind in ('r','v')
-				and n.nspname in ($schema)
-				and pg_catalog.pg_table_is_visible(c.oid)
-			order by relname asc
-		};
-	} elsif ($driver eq 'oracle') {
-		$sql = q{
-			select object_name
-			from user_objects
-			where object_type in ('TABLE','VIEW')
-			order by object_name asc
-		};
-	} elsif ($driver eq 'db2') {
-		$sql = q{
-			select tabname
-			from syscat.tables
-			where tabschema not like 'SYS%' and type in ('T','V')
-			order by tabname asc
-		};
-	} else {
-		die dslog("This method is not yet implemented for your database server ($driver).");
-	}
+        $sql = qq{
+            select c.relname
+            from pg_catalog.pg_class c
+                join pg_catalog.pg_roles r on (r.oid = c.relowner)
+                left join pg_catalog.pg_namespace n on (n.oid = c.relnamespace)
+            where c.relkind in ('r','v')
+                and n.nspname in ($schema)
+                and pg_catalog.pg_table_is_visible(c.oid)
+            order by relname asc
+        };
+    } elsif ($driver eq 'oracle') {
+        $sql = q{
+            select object_name
+            from user_objects
+            where object_type in ('TABLE','VIEW')
+            order by object_name asc
+        };
+    } elsif ($driver eq 'db2') {
+        $sql = q{
+            select tabname
+            from syscat.tables
+            where tabschema not like 'SYS%' and type in ('T','V')
+            order by tabname asc
+        };
+    } else {
+        die dslog("This method is not yet implemented for your database server ($driver).");
+    }
 
-	my $res = $self->do($sql);
+    my $res = $self->do($sql);
 
-	if ($res) {
-		my @tables = ();
+    if ($res) {
+        my @tables = ();
 
-		while ($res->next) {
-			push(@tables, $res->[0]);
-		}
+        while ($res->next) {
+            push(@tables, $res->[0]);
+        }
 
-		return @tables;
-	} else {
-		die dslog("Error encountered when retrieving list of tables: $DBI::errstr");
-	}
+        return @tables;
+    } else {
+        die dslog("Error encountered when retrieving list of tables: $DBI::errstr");
+    }
 }
 
 sub views {
-	my ($self) = @_;
+    my ($self) = @_;
 
-	my $driver = lc($self->{'config'}->{'primary'}->{'driver'});
-	my $schema = $self->{'handles'}->{'primary'}->quote($self->{'config'}->{'primary'}->{'db'});
+    my $driver = lc($self->{'config'}->{'primary'}->{'driver'});
+    my $schema = $self->{'handles'}->{'primary'}->quote($self->{'config'}->{'primary'}->{'db'});
 
-	my ($sql);
+    my ($sql);
 
-	if ($driver eq 'mysql') {
-		$sql = qq{
-			select table_name
-			from information_schema.tables
-			where table_schema in ($schema)
-				and table_type = 'VIEW'
-			order by table_name asc 
-		};
-	} elsif ($driver eq 'pg') {
-		# make sure we only list the relations visible in the current search_path
-		if (defined $self->{'config'}->{'primary'}->{'schemas'}
-				&& ref($self->{'config'}->{'primary'}->{'schemas'}) eq 'ARRAY') {
-			$schema = join(',', @{$self->{'config'}->{'primary'}->{'schemas'}});
-		} else {
-			$schema = q{'public'};
-		}
+    if ($driver eq 'mysql') {
+        $sql = qq{
+            select table_name
+            from information_schema.tables
+            where table_schema in ($schema)
+                and table_type = 'VIEW'
+            order by table_name asc
+        };
+    } elsif ($driver eq 'pg') {
+        # make sure we only list the relations visible in the current search_path
+        if (defined $self->{'config'}->{'primary'}->{'schemas'}
+                && ref($self->{'config'}->{'primary'}->{'schemas'}) eq 'ARRAY') {
+            $schema = join(',', @{$self->{'config'}->{'primary'}->{'schemas'}});
+        } else {
+            $schema = q{'public'};
+        }
 
-		$sql = qq{
-			select c.relname
-			from pg_catalog.pg_class c
-				join pg_catalog.pg_roles r on (r.oid = c.relowner)
-				left join pg_catalog.pg_namespace n on (n.oid = c.relnamespace)
-			where c.relkind in ('v')
-				and n.nspname in ($schema)
-				and pg_catalog.pg_table_is_visible(c.oid)
-			order by relname asc
-		};
-	} elsif ($driver eq 'oracle') {
-		$sql = q{
-			select object_name
-			from user_objects
-			where object_type = 'VIEW'
-			order by object_name asc
-		};
-	} elsif ($driver eq 'db2') {
-		$sql = q{
-			select tabname
-			from syscat.tables
-			where tabschema not like 'SYS%' and type in ('V')
-			order by tabname asc
-		};
-	} else {
-		die dslog("This method is not yet implemented for your database server ($driver).");
-	}
+        $sql = qq{
+            select c.relname
+            from pg_catalog.pg_class c
+                join pg_catalog.pg_roles r on (r.oid = c.relowner)
+                left join pg_catalog.pg_namespace n on (n.oid = c.relnamespace)
+            where c.relkind in ('v')
+                and n.nspname in ($schema)
+                and pg_catalog.pg_table_is_visible(c.oid)
+            order by relname asc
+        };
+    } elsif ($driver eq 'oracle') {
+        $sql = q{
+            select object_name
+            from user_objects
+            where object_type = 'VIEW'
+            order by object_name asc
+        };
+    } elsif ($driver eq 'db2') {
+        $sql = q{
+            select tabname
+            from syscat.tables
+            where tabschema not like 'SYS%' and type in ('V')
+            order by tabname asc
+        };
+    } else {
+        die dslog("This method is not yet implemented for your database server ($driver).");
+    }
 
-	my $res = $self->do($sql);
+    my $res = $self->do($sql);
 
-	if ($res) {
-		my @views = ();
+    if ($res) {
+        my @views = ();
 
-		while ($res->next) {
-			push(@views, $res->[0]);
-		}
+        while ($res->next) {
+            push(@views, $res->[0]);
+        }
 
-		return @views;
-	} else {
-		die dslog("Error encountered when retrieving list of tables: $DBI::errstr");
-	}
+        return @views;
+    } else {
+        die dslog("Error encountered when retrieving list of tables: $DBI::errstr");
+    }
 }
 
 #######################################################################
 # Internal/Private Subroutines
 
 sub DESTROY {
-	my ($self) = shift;
+    my ($self) = shift;
 
-	# If primary handle is in a transaction, cluck out a warning and issue a rollback
-	# (Note that the while{} is used to support nested-transactions, assuming the
-	# underlying DB supports them -- whether nested transactions are supported is
-	# actually checked elsewhere, so if it isn't this while loop will only ever
-	# have a single iteration).
-	while ($self->{'in_tx'} > 0) {
-		# Don't issue the warning when AutoCommit is turned off, we're in an implicitly created
-		# transaction and no non-select statements have been issued in the current transaction
-		unless ($self->{'st_count'} == 0 && $self->{'in_tx'} == 1 && $self->{'autocommit'} == 0) {
-			dslog("Database connection killed during a transaction!") if DEBUG();
-		}
-		$self->{'handles'}->{'primary'}->rollback
-			|| dslog("Attempted to rollback unclosed transaction but failed: $DBI::errstr");
-		$self->{'in_tx'}--;
-	}
+    # If primary handle is in a transaction, cluck out a warning and issue a rollback
+    # (Note that the while{} is used to support nested-transactions, assuming the
+    # underlying DB supports them -- whether nested transactions are supported is
+    # actually checked elsewhere, so if it isn't this while loop will only ever
+    # have a single iteration).
+    while ($self->{'in_tx'} > 0) {
+        # Don't issue the warning when AutoCommit is turned off, we're in an implicitly created
+        # transaction and no non-select statements have been issued in the current transaction
+        unless ($self->{'st_count'} == 0 && $self->{'in_tx'} == 1 && $self->{'autocommit'} == 0) {
+            dslog("Database connection killed during a transaction!") if DEBUG();
+        }
+        $self->{'handles'}->{'primary'}->rollback
+            || dslog("Attempted to rollback unclosed transaction but failed: $DBI::errstr");
+        $self->{'in_tx'}--;
+    }
 }
 
 sub _db_connect {
-	my %args = (
-		cache		=> 0,
-		dbd_opts	=> {},
-		@_,
-	);
+    my %args = (
+        cache        => 0,
+        dbd_opts    => {},
+        @_,
+    );
 
-	my ($dsn);
+    my ($dsn);
 
-	# if a custom DSN was present in the configuration, then just use it
-	if (defined $args{'dsn'} && length($args{'dsn'}) > 0) {
-		# Required DBI connection arguments when manual DSN specified
-		foreach (qw( driver )) {
-			if (!exists $args{$_}) {
-				dslog("DBI connection attempted without providing '$_' argument!") if DEBUG() >= 3;
-				return;
-			}
-		}
+    # if a custom DSN was present in the configuration, then just use it
+    if (defined $args{'dsn'} && length($args{'dsn'}) > 0) {
+        # Required DBI connection arguments when manual DSN specified
+        foreach (qw( driver )) {
+            if (!exists $args{$_}) {
+                dslog("DBI connection attempted without providing '$_' argument!") if DEBUG() >= 3;
+                return;
+            }
+        }
 
-		$dsn = $args{'dsn'};
-	# otherwise, build the DSN ourselves
-	} else {
-		# Required DBI connection arguments
-		foreach (qw( driver database host )) {
-			if (!exists $args{$_}) {
-				dslog("DBI connection attempted without providing '$_' argument!") if DEBUG() >= 3;
-				return;
-			}
-		}
+        $dsn = $args{'dsn'};
+    # otherwise, build the DSN ourselves
+    } else {
+        # Required DBI connection arguments
+        foreach (qw( driver database host )) {
+            if (!exists $args{$_}) {
+                dslog("DBI connection attempted without providing '$_' argument!") if DEBUG() >= 3;
+                return;
+            }
+        }
 
-		# Technically optional arguments that are almost always actually required for a good connection
-		foreach (qw( user password )) {
-			if (!exists $args{$_}) {
-				dslog("DBI connection arguments do not contain '$_' argument. We'll try connecting anyway.") if DEBUG() >= 3;
-				$args{$_} = '';
-			}
-		}
+        # Technically optional arguments that are almost always actually required for a good connection
+        foreach (qw( user password )) {
+            if (!exists $args{$_}) {
+                dslog("DBI connection arguments do not contain '$_' argument. We'll try connecting anyway.") if DEBUG() >= 3;
+                $args{$_} = '';
+            }
+        }
 
-		$dsn = qq|dbi:$args{'driver'}:database=$args{'database'};host=$args{'host'}|;
-		$dsn .= qq|;port=$args{'port'}| if defined $args{'port'} && $args{'port'} =~ /^\d+$/;
-	}
+        $dsn = qq|dbi:$args{'driver'}:database=$args{'database'};host=$args{'host'}|;
+        $dsn .= qq|;port=$args{'port'}| if defined $args{'port'} && $args{'port'} =~ /^\d+$/;
+    }
 
-	dslog(q{Connecting with DSN}, $dsn) if DEBUG();
+    dslog(q{Connecting with DSN}, $dsn) if DEBUG();
 
-	my ($dbh);
+    my ($dbh);
 
-	# if DBI connection caching is desired, use connect_cached() method instead
-	# also, issue immediate rollback after connecting, just in case we've been
-	# returned a stale cached connection that had never closed its transaction
-	if ($args{'cache'} && ($dbh = DBI->connect_cached($dsn, $args{'user'}, $args{'password'}, $args{'dbd_opts'}))) {
-		$dbh->rollback if $dbh->ping >= 3;
-		dslog(q{Returning DB connection from DBI's connect_cached.}) if DEBUG() >= 3;
-		return $dbh;
-	} elsif (!$args{'cache'} && ($dbh = DBI->connect($dsn, $args{'user'}, $args{'password'}, $args{'dbd_opts'}))) {
-		$dbh->rollback if $dbh->ping >= 3;
-		dslog(q{Returning DB connection from DBI's connect.}) if DEBUG() >= 3;
-		return $dbh;
-	} else {
-		dslog("DBI connection attempt failed: $DBI::errstr") if DEBUG();
-		return;
-	}
+    # if DBI connection caching is desired, use connect_cached() method instead
+    # also, issue immediate rollback after connecting, just in case we've been
+    # returned a stale cached connection that had never closed its transaction
+    if ($args{'cache'} && ($dbh = DBI->connect_cached($dsn, $args{'user'}, $args{'password'}, $args{'dbd_opts'}))) {
+        $dbh->rollback if $dbh->ping >= 3;
+        dslog(q{Returning DB connection from DBI's connect_cached.}) if DEBUG() >= 3;
+        return $dbh;
+    } elsif (!$args{'cache'} && ($dbh = DBI->connect($dsn, $args{'user'}, $args{'password'}, $args{'dbd_opts'}))) {
+        $dbh->rollback if $dbh->ping >= 3;
+        dslog(q{Returning DB connection from DBI's connect.}) if DEBUG() >= 3;
+        return $dbh;
+    } else {
+        dslog("DBI connection attempt failed: $DBI::errstr") if DEBUG();
+        return;
+    }
 
-	return;
+    return;
 }
 
 sub _set_schema_searchpath {
-	my ($dbh, $driver, $schemas) = @_;
+    my ($dbh, $driver, $schemas) = @_;
 
-	dslog(q{Search path setter entered.}) if DEBUG() >= 4;
+    dslog(q{Search path setter entered.}) if DEBUG() >= 4;
 
-	if (!defined $driver) {
-		dslog("No driver name supplied during search path configuration") if DEBUG();
-		return;
-	}
+    if (!defined $driver) {
+        dslog("No driver name supplied during search path configuration") if DEBUG();
+        return;
+    }
 
-	# schema search path support is only available for PostgreSQL for now
-	return $dbh unless lc($driver) eq 'pg';
+    # schema search path support is only available for PostgreSQL for now
+    return $dbh unless lc($driver) eq 'pg';
 
-	if (!defined $schemas || ref($schemas) ne 'ARRAY' || scalar(@{$schemas}) < 1) {
-		dslog("No schema names provided for inclusion in search path") if DEBUG();
-		return;
-	}
+    if (!defined $schemas || ref($schemas) ne 'ARRAY' || scalar(@{$schemas}) < 1) {
+        dslog("No schema names provided for inclusion in search path") if DEBUG();
+        return;
+    }
 
-	dslog(q{Changing connection's schema search path to}, join(', ', @{$schemas})) if DEBUG() >= 2;
+    dslog(q{Changing connection's schema search path to}, join(', ', @{$schemas})) if DEBUG() >= 2;
 
-	# quote the schema names for paranoia
-	my @s;
-	push(@s, $dbh->quote($_)) for @{$schemas};
+    # quote the schema names for paranoia
+    my @s;
+    push(@s, $dbh->quote($_)) for @{$schemas};
 
-	my ($sql);
+    my ($sql);
 
-	if (lc($driver) eq 'pg') {
-		$sql = 'set search_path to ' . join(', ', @s);
-	}
+    if (lc($driver) eq 'pg') {
+        $sql = 'set search_path to ' . join(', ', @s);
+    }
 
-	if (length($sql) > 0) {
-		if ($dbh->do($sql)) {
-			return $dbh;
-		} else {
-			dslog(q{Error occurred when setting schema search path:}, $dbh->errstr);
-			return;
-		}
-	} else {
-		dslog(q{No SQL to issue for setting schemas.}) if DEBUG() >= 2;
-		return $dbh;
-	}
+    if (length($sql) > 0) {
+        if ($dbh->do($sql)) {
+            return $dbh;
+        } else {
+            dslog(q{Error occurred when setting schema search path:}, $dbh->errstr);
+            return;
+        }
+    } else {
+        dslog(q{No SQL to issue for setting schemas.}) if DEBUG() >= 2;
+        return $dbh;
+    }
 
-	return;
+    return;
 }
 
 sub _transform_bindings {
-	my ($sql, @binds) = @_;
+    my ($sql, @binds) = @_;
 
-	# certain SQL statement types allow different styles of binding (i.e. hashrefs for insert/update
-	# but not select, delete, create, etc.)
-	$sql =~ s/(^\s+|\s+$)//os;
-	my $st_type = lc( ($sql =~ /^(\w+)\s+/os)[0] );
+    # certain SQL statement types allow different styles of binding (i.e. hashrefs for insert/update
+    # but not select, delete, create, etc.)
+    $sql =~ s/(^\s+|\s+$)//os;
+    my $st_type = lc( ($sql =~ /^(\w+)\s+/os)[0] );
     $st_type = 'select' if $st_type eq 'with'; # ugh (stupid workaround for legacy DataStore - rewrite is/will be much smarter about this and not just take random stabs in the dark)
 
-	# if no bound variables were passed in, we can save a few cycles by returning right here
-	return ($st_type, $sql) if !@binds || scalar(@binds) < 1;
+    # if no bound variables were passed in, we can save a few cycles by returning right here
+    return ($st_type, $sql) if !@binds || scalar(@binds) < 1;
 
-	my @final_binds = ();
+    my @final_binds = ();
 
-	# verify that binds passed in are appropriate for the type of statement being used
-	if ($st_type eq 'update' && $sql =~ /\s+set\s+$HASH_PH/ois && (scalar(@binds) < 1 || ref($binds[0]) ne 'HASH')) {
-		die dslog("First bind on UPDATE statements must be a hash reference when not using an explicit SET clause!");
-	} elsif ($st_type eq 'insert' && $sql =~ /^\s*insert\s+into\s+\S+\s+(values\s+)?$HASH_PH/ois
-			&& (scalar(@binds) < 1 || !(ref($binds[0]) eq 'ARRAY' || ref($binds[0]) eq 'HASH'))) {
-		die dslog("First bind on INSERT must be hash reference (or array reference of hash references) when using "
-			. "a hash placeholder in the columns-values clause!");
-	} elsif ($st_type eq 'select' && scalar(@binds) > 0) {
-		foreach (@binds) {
-			if (ref($_) eq 'HASH') {
-				die dslog("Hash reference binds not permitted for SELECT statements!");
-			}
-		}
-	}
+    # verify that binds passed in are appropriate for the type of statement being used
+    if ($st_type eq 'update' && $sql =~ /\s+set\s+$HASH_PH/ois && (scalar(@binds) < 1 || ref($binds[0]) ne 'HASH')) {
+        die dslog("First bind on UPDATE statements must be a hash reference when not using an explicit SET clause!");
+    } elsif ($st_type eq 'insert' && $sql =~ /^\s*insert\s+into\s+\S+\s+(values\s+)?$HASH_PH/ois
+            && (scalar(@binds) < 1 || !(ref($binds[0]) eq 'ARRAY' || ref($binds[0]) eq 'HASH'))) {
+        die dslog("First bind on INSERT must be hash reference (or array reference of hash references) when using "
+            . "a hash placeholder in the columns-values clause!");
+    } elsif ($st_type eq 'select' && scalar(@binds) > 0) {
+        foreach (@binds) {
+            if (ref($_) eq 'HASH') {
+                die dslog("Hash reference binds not permitted for SELECT statements!");
+            }
+        }
+    }
 
-	# for update statements, rework the first placeholder into a "set key = ?, ..." form and take
-	# it off the list of binds. this is only done if a hashref placeholder was used, though
-	if ($st_type eq 'update' && $sql =~ /$HASH_PH/o) {
-		if ($sql =~ s/(set\s+)$HASH_PH(\s*)/ $1 . join(', ', map { "$_ = ?" } sort keys %{$binds[0]}) . $2 /siex) {
-			push(@final_binds, $binds[0]->{$_}) for sort keys %{$binds[0]};
-			# remove the bind from the list so that the catch-all bind code down below doesn't
-			# try to reuse it (since updates can, and almost always will, have additional binds
-			# after the hashref in the SET clause)
-			shift @binds;
-		}
-	}
+    # for update statements, rework the first placeholder into a "set key = ?, ..." form and take
+    # it off the list of binds. this is only done if a hashref placeholder was used, though
+    if ($st_type eq 'update' && $sql =~ /$HASH_PH/o) {
+        if ($sql =~ s/(set\s+)$HASH_PH(\s*)/ $1 . join(', ', map { "$_ = ?" } sort keys %{$binds[0]}) . $2 /siex) {
+            push(@final_binds, $binds[0]->{$_}) for sort keys %{$binds[0]};
+            # remove the bind from the list so that the catch-all bind code down below doesn't
+            # try to reuse it (since updates can, and almost always will, have additional binds
+            # after the hashref in the SET clause)
+            shift @binds;
+        }
+    }
 
-	# -- this only happens when a hash placeholder is used in the col-vals clause of an insert --
-	# for insert statements, we need to figure out which columns we're inserting, place those
-	# into $sql, then add the actual values list(s)' placeholders... however, we only do
-	# any of this if the caller used a '???' placeholder in the query (if the caller passed in
-	# something like "insert into tblX (a,b,c) values (?,?,?)" then we won't do anything
-	# special here, and the placeholders will just be handled by the catch-all code lower down
-	if ($st_type eq 'insert' && $sql =~ /^\s*insert\s+into\s+\S+\s+(values\s+)?$HASH_PH/ois) {
-		my @cols = ();
-		if (ref($binds[0]) eq 'HASH') {
-			@cols = sort keys %{$binds[0]};
-		} elsif (ref($binds[0]) eq 'ARRAY') {
-			@cols = sort keys %{$binds[0]->[0]};
-		}
+    # -- this only happens when a hash placeholder is used in the col-vals clause of an insert --
+    # for insert statements, we need to figure out which columns we're inserting, place those
+    # into $sql, then add the actual values list(s)' placeholders... however, we only do
+    # any of this if the caller used a '???' placeholder in the query (if the caller passed in
+    # something like "insert into tblX (a,b,c) values (?,?,?)" then we won't do anything
+    # special here, and the placeholders will just be handled by the catch-all code lower down
+    if ($st_type eq 'insert' && $sql =~ /^\s*insert\s+into\s+\S+\s+(values\s+)?$HASH_PH/ois) {
+        my @cols = ();
+        if (ref($binds[0]) eq 'HASH') {
+            @cols = sort keys %{$binds[0]};
+        } elsif (ref($binds[0]) eq 'ARRAY') {
+            @cols = sort keys %{$binds[0]->[0]};
+        }
 
-		die dslog("No columns defined for insert statement!") if scalar(@cols) < 1;
+        die dslog("No columns defined for insert statement!") if scalar(@cols) < 1;
 
-		my $ph_replacement = '(' . join(',', @cols) . ') values ';
-		
-		my $rec_count = ref($binds[0]) eq 'ARRAY' ? scalar(@{$binds[0]}) : 1;
+        my $ph_replacement = '(' . join(',', @cols) . ') values ';
 
-		$ph_replacement .= join(', ', ('(' . join(',', ('?') x scalar(@cols)) . ')') x $rec_count);
+        my $rec_count = ref($binds[0]) eq 'ARRAY' ? scalar(@{$binds[0]}) : 1;
 
-		$sql =~ s/^(\s*insert\s+into\s+\S+)\s+(?:values\s+)?$HASH_PH\s+(.*)/$1 $ph_replacement $2/si;
+        $ph_replacement .= join(', ', ('(' . join(',', ('?') x scalar(@cols)) . ')') x $rec_count);
 
-		if (ref($binds[0]) eq 'ARRAY') {
-			foreach my $rec (@{$binds[0]}) {
-				push(@final_binds, $rec->{$_}) for @cols;
-			}
-		} else {
-			push(@final_binds, $binds[0]->{$_}) for @cols;
-		}
+        $sql =~ s/^(\s*insert\s+into\s+\S+)\s+(?:values\s+)?$HASH_PH\s+(.*)/$1 $ph_replacement $2/si;
 
-		# remove the first bind from the list in case there are others (almost exclusively
-		# in the case where the insert is getting its values from a select)
-		shift @binds;
-	}
+        if (ref($binds[0]) eq 'ARRAY') {
+            foreach my $rec (@{$binds[0]}) {
+                push(@final_binds, $rec->{$_}) for @cols;
+            }
+        } else {
+            push(@final_binds, $binds[0]->{$_}) for @cols;
+        }
 
-	# now that the special cases have been handled, we can loop through the remaining
-	# binds, handling the arrayref ones (for IN (...) lists) as we run into them
-	foreach my $bind (@binds) {
-		if (ref($bind) eq 'ARRAY') {
-			# arrayref binds can only be used with IN (...) lists or ARRAY[] constructors, so if we don't have
-			# one available in $sql to modify, error out
-			if ($sql =~ /((in\s+)([(]?\s*$ARRAY_PH\s*[)]?)|(array\s*\[\s*$ARRAY_PH\s*\]))/is) {
-				my $ph_block = $1;
-				if ($ph_block =~ /^in/is) {
-					if ($sql =~ s/(in\s+)([(]?\s*$ARRAY_PH\s*[)]?)/ $1 . '( ' . join(', ', ('?') x scalar(@{$bind})) . ' )' /siex) {
-						push(@final_binds, @{$bind});
-					}
-				} elsif ($ph_block =~ /^array/is) {
-					if ($sql =~ s/\s*array\s*\[\s*$ARRAY_PH\s*\]/ ' array [ ' . join(', ', ('?') x scalar(@{$bind})) . ' ] ' /siex) {
-						push(@final_binds, @{$bind});
-					}
-				} else {
-					die dslog("Encountered arrayref placeholder syntax that cannot be understood at this time");
-				}
-			} else {
-				die dslog("Arrayref bind was used without corresponding array placeholder as part of an IN (...) list or an ARRAY[] constructor!");
-			}
-		} else {
-			push(@final_binds, $bind);
-		}
-	}
+        # remove the first bind from the list in case there are others (almost exclusively
+        # in the case where the insert is getting its values from a select)
+        shift @binds;
+    }
 
-	# need to "fix" the statement type value now for queries that use a RETURNING
-	# clause at the end of an INSERT, UPDATE or DELETE... for placeholder binding
-	# purposes we treat them as their real type, but for everything else in datastore
-	# they should be treated as SELECTs since that's effectively what comes back
-	# from the database
-	if (scalar(grep { $st_type eq $_ } qw( insert update delete )) > 0 && $sql =~ m{\s+returning\s+(\*|\w)}ois) {
-		$st_type = 'select';
-	}
+    # now that the special cases have been handled, we can loop through the remaining
+    # binds, handling the arrayref ones (for IN (...) lists) as we run into them
+    foreach my $bind (@binds) {
+        if (ref($bind) eq 'ARRAY') {
+            # arrayref binds can only be used with IN (...) lists or ARRAY[] constructors, so if we don't have
+            # one available in $sql to modify, error out
+            if ($sql =~ /((in\s+)([(]?\s*$ARRAY_PH\s*[)]?)|(array\s*\[\s*$ARRAY_PH\s*\]))/is) {
+                my $ph_block = $1;
+                if ($ph_block =~ /^in/is) {
+                    if ($sql =~ s/(in\s+)([(]?\s*$ARRAY_PH\s*[)]?)/ $1 . '( ' . join(', ', ('?') x scalar(@{$bind})) . ' )' /siex) {
+                        push(@final_binds, @{$bind});
+                    }
+                } elsif ($ph_block =~ /^array/is) {
+                    if ($sql =~ s/\s*array\s*\[\s*$ARRAY_PH\s*\]/ ' array [ ' . join(', ', ('?') x scalar(@{$bind})) . ' ] ' /siex) {
+                        push(@final_binds, @{$bind});
+                    }
+                } else {
+                    die dslog("Encountered arrayref placeholder syntax that cannot be understood at this time");
+                }
+            } else {
+                die dslog("Arrayref bind was used without corresponding array placeholder as part of an IN (...) list or an ARRAY[] constructor!");
+            }
+        } else {
+            push(@final_binds, $bind);
+        }
+    }
 
-	dslog(q{Binding transformation completed. SQL is now [[}, $sql, q{]] with bindings [[}, join(', ', @final_binds), q{]]})
-		if DEBUG() >= 2;
+    # need to "fix" the statement type value now for queries that use a RETURNING
+    # clause at the end of an INSERT, UPDATE or DELETE... for placeholder binding
+    # purposes we treat them as their real type, but for everything else in datastore
+    # they should be treated as SELECTs since that's effectively what comes back
+    # from the database
+    if (scalar(grep { $st_type eq $_ } qw( insert update delete )) > 0 && $sql =~ m{\s+returning\s+(\*|\w)}ois) {
+        $st_type = 'select';
+    }
 
-	return ($st_type, $sql, @final_binds);
+    dslog(q{Binding transformation completed. SQL is now [[}, $sql, q{]] with bindings [[}, join(', ', @final_binds), q{]]})
+        if DEBUG() >= 2;
+
+    return ($st_type, $sql, @final_binds);
 }
 
 1;

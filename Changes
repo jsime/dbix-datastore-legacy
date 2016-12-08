@@ -1,14 +1,14 @@
 Revision history for DBIx-DataStore
 
-0.097   2016-12-05
+0.097   2016-12-08
         - Conversion to dzil packaging and public release of library to CPAN to
           assist with maintenance of applications with this legacy dependency.
         - Additions of tests using SQLite.
         - Changes to the library itself since 0.096 limited almost exclusively
-          to packaging and documentation. Functionality is unaltered.
+          to packaging, testing, and documentation. Functionality is unaltered.
 
 0.096   2013-05-23
-        - Ugly work-around to properly handled CTEs as read-oriented DML.
+        - Ugly work-around to properly handle CTEs as read-oriented DML.
         - Minor bugfixes.
 
 0.095   2013-01-15

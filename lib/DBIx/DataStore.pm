@@ -784,7 +784,7 @@ preparation caching is generally very safe.
         db: mydatabase
         host: db-1
         user: username
-        pass: password
+        password: password
         schemas:
             - myschema
             - public
@@ -822,7 +822,7 @@ preparation caching is generally very safe.
             db      => 'mydatabase',
             host    => 'db-1',
             user    => 'username',
-            pass    => 'password',
+            password => 'password',
             schemas => ['myschema','public'],
             dbd_opts => {
                 AutoCommit => 0,
@@ -854,7 +854,7 @@ Because DBIx::DataStore uses the normal DBI/DBD layers underneath, all the
 usual methods of locating and presenting database credentials to the
 appropriate database server are available.  This includes methods such as the
 C<.pgpass> file for PostgreSQL and equivalents for other RDBMSes. If your
-DBIx::DataStore configuration does not include a C<pass> attribute for a given
+DBIx::DataStore configuration does not include a C<password> attribute for a given
 database host, these alternate methods will be used as long as they are
 properly configured.
 
@@ -1369,7 +1369,7 @@ sub db_primary {
     $config{'name'} = 'primary';
 
     # remove "sensitive" fields from config
-    delete $config{'pass'} if defined $config{'pass'};
+    delete $config{'password'} if defined $config{'password'};
 
     return { %config };
 }
@@ -1382,7 +1382,7 @@ sub db_reader {
 
     my %config = %{$self->{'config'}->{'readers'}->{$self->{'config'}->{'default_reader'}}};
 
-    delete $config{'pass'} if defined $config{'pass'};
+    delete $config{'password'} if defined $config{'password'};
 
     return { %config };
 }
